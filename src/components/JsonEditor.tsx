@@ -430,7 +430,7 @@ export function JsonEditor({ data, onUpdate, onRequestAIRefine, isRefining }: Js
             disabled={isRefining || !tableRefinePrompt.trim()}
             className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
             <span className="material-symbols-outlined text-[14px]">{isRefining ? 'hourglass_empty' : 'auto_fix_high'}</span>
-            {isRefining ? 'Expanding...' : 'Expand with AI'}
+            {isRefining ? 'Refining...' : 'Refine with AI'}
           </button>
         </div>
       )}
