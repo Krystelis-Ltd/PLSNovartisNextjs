@@ -5,16 +5,20 @@ import JSZip from 'jszip';
 import fs from 'fs';
 import path from 'path';
 import { TABLE_HEADER_COLORS, TREATMENT_COLOR_PALETTE } from '@/lib/constants';
+import { getUserIdentity } from '@/lib/auth';
 import type { GenerateRequest, TreatmentGroup, ChartEndpointItem, ChartDataset } from '@/types';
 
 export async function POST(request: NextRequest) {
     try {
+        const userId = getUserIdentity(request);
         const body: GenerateRequest = await request.json();
         const { parsedData, mappingName } = body;
 
         if (!parsedData) {
             return NextResponse.json({ error: 'Missing parsedData for generation' }, { status: 400 });
         }
+
+        console.log(`[AUDIT] [generate] User "${userId}" generating report for mapping: "${mappingName}"`);
 
         const zip = new JSZip();
 

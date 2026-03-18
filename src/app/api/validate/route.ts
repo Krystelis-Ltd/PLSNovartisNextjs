@@ -2,14 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { openai } from '@/lib/openai';
 import { withRetry } from '@/lib/retry';
 import { AI_MODEL } from '@/lib/constants';
+import { getUserIdentity } from '@/lib/auth';
 import type { OpenAIResponsePayload, ValidateRequest } from '@/types';
 
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
     try {
+        const userId = getUserIdentity(request);
         const body: ValidateRequest = await request.json();
         const { keyName, extractedData, sourceQuote } = body;
+
+        console.log(`[AUDIT] [validate] User "${userId}" requested validation for key: "${keyName}"`);
 
         // Only validate specific complex tables
         if (!keyName.includes('table')) {

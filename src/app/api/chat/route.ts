@@ -1,18 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { openai } from '@/lib/openai';
 import { AI_MODEL } from '@/lib/constants';
+import { getUserIdentity } from '@/lib/auth';
 import type { OpenAIResponsePayload, ChatRequest } from '@/types';
 
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
     try {
+        const userId = getUserIdentity(request);
         const body: ChatRequest = await request.json();
         const { messages, vectorStoreId, fetchedAnswers } = body;
 
         if (!messages || !vectorStoreId) {
             return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
         }
+
+        const lastMessage = messages[messages.length - 1]?.content || "";
+        console.log(`[AUDIT] [chat] User "${userId}" sent message: "${lastMessage}"`);
 
         const systemMessage = `
             You are a helpful and expert AI document medical assistant.

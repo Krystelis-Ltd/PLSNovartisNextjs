@@ -1,18 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { openai } from '@/lib/openai';
 import { AI_MODEL } from '@/lib/constants';
+import { getUserIdentity } from '@/lib/auth';
 import type { OpenAIResponsePayload, RefineRequest } from '@/types';
 
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
     try {
+        const userId = getUserIdentity(request);
         const body: RefineRequest = await request.json();
         const { rawJson, userInstructions, vectorStoreId } = body;
 
         if (!rawJson) {
             return NextResponse.json({ error: 'Missing rawJson to refine' }, { status: 400 });
         }
+
+        const keysBeingRefined = typeof rawJson === 'string' ? 'String Payload' : Object.keys(rawJson).join(', ');
+        console.log(`[AUDIT] [refine] User "${userId}" requested AI refinement. Instructions: "${userInstructions || 'None'}". Data keys: [${keysBeingRefined}]`);
 
         const KB_VECTOR_STORE_ID = process.env.NOVARTIS_KB_VECTOR_STORE_ID || "";
         if (!KB_VECTOR_STORE_ID) {

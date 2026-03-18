@@ -38,6 +38,41 @@ export default function Dashboard() {
   const { showToast } = useToast()
   const [readabilityLevel, setReadabilityLevel] = useState("6th Grade")
   const [mappingName, setMappingName] = useState("results_PLS")
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null)
+
+  useEffect(() => {
+    // Fetch user info from Azure Easy Auth
+    const fetchUser = async () => {
+      try {
+        const response = await fetch('/.auth/me');
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data && data[0]) {
+          const userClaims = data[0].user_claims || [];
+          const nameClaim = userClaims.find((c: { typ: string; val: string }) =>
+            c.typ === 'name' || c.typ === 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'
+          );
+          const emailClaim = userClaims.find((c: { typ: string; val: string }) =>
+            c.typ === 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'
+          );
+          setUser({
+            name: nameClaim?.val || data[0].user_id?.split('@')[0] || 'User',
+            email: emailClaim?.val || data[0].user_id || ''
+          });
+
+          // Log session start
+          fetch('/api/audit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event: 'SESSION_STARTED', details: { userAgent: navigator.userAgent } })
+          }).catch(() => {});
+        }
+      } catch {
+        // Expected in local dev — Easy Auth not available
+      }
+    };
+    fetchUser();
+  }, []);
 
   // Dynamic prompts derived from selection
   const promptData = extractPrompts(readabilityLevel, mappingName)
@@ -66,6 +101,7 @@ export default function Dashboard() {
   const [sourceModal, setSourceModal] = useState<SourceModalData | null>(null)
   const [showTestUI, setShowTestUI] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const uploadStartTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | undefined;
@@ -105,6 +141,7 @@ export default function Dashboard() {
     if (queuedFiles.length === 0) return;
 
     setIsUploading(true);
+    uploadStartTimeRef.current = Date.now();
 
     const newFileEntries = queuedFiles.map(f => ({
       name: f.name,
@@ -337,6 +374,7 @@ export default function Dashboard() {
 
   const generateReport = async () => {
     setIsGenerating(true);
+    const genStartTime = Date.now();
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -361,6 +399,25 @@ export default function Dashboard() {
         a.href = url;
         a.download = filename;
         a.click();
+
+        // Log time-spent from upload to final document
+        const totalTimeSeconds = uploadStartTimeRef.current
+          ? Math.round((Date.now() - uploadStartTimeRef.current) / 1000)
+          : null;
+        const genTimeSeconds = Math.round((Date.now() - genStartTime) / 1000);
+        fetch('/api/audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: 'REPORT_GENERATED',
+            details: {
+              mappingName,
+              generationTimeSec: genTimeSeconds,
+              totalPipelineTimeSec: totalTimeSeconds,
+              filename
+            }
+          })
+        }).catch(() => {});
       } else {
         showToast("Report generation failed.", 'error');
       }
@@ -487,6 +544,12 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-4">
+          {user && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg text-xs font-semibold text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
+              <span className="material-symbols-outlined text-[16px]">person</span>
+              Hi, {user.name}
+            </div>
+          )}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400">
             <span className="w-2 h-2 rounded-full bg-green-500"></span>
             System Online

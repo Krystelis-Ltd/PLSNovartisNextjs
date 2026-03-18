@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { openai } from '@/lib/openai';
 import { withRetry } from '@/lib/retry';
 import { AI_MODEL } from '@/lib/constants';
+import { getUserIdentity } from '@/lib/auth';
 import type { OpenAIResponsePayload, ExtractRequest } from '@/types';
 
 export const maxDuration = 300;
@@ -126,6 +127,7 @@ function stripMarkdownFences(text: string): string {
 
 export async function POST(request: NextRequest) {
     try {
+        const userId = getUserIdentity(request);
         const body: ExtractRequest = await request.json();
         const { batchPrompts, vectorStoreId, contextData } = body;
 
@@ -134,6 +136,8 @@ export async function POST(request: NextRequest) {
         }
 
         const keys = Object.keys(batchPrompts);
+        console.log(`[AUDIT] [extract] User "${userId}" requested data extraction for keys: [${keys.join(', ')}]`);
+
 
         // === AGENT 1: Retrieval ===
         console.log("[extract] Agent 1 (Retrieval): Starting for keys:", keys);

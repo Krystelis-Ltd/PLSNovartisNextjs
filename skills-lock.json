@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "azure-monitor-audit": {
+      "source": "bagelhole/devops-security-agent-skills",
+      "sourceType": "github",
+      "computedHash": "815663c19d9f858124ef94a6a640cb8daa0cf84385f71763e0f445ad8b486477"
+    },
     "docx-to-markdown": {
       "source": "duc01226/easyplatform",
       "sourceType": "github",
