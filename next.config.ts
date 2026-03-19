@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
   // Remove x-powered-by header for security
   poweredByHeader: false,
 
