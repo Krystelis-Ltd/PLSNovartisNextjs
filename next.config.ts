@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Standalone output for optimized Azure App Service deployment
+  output: "standalone",
+
   // Remove x-powered-by header for security
   poweredByHeader: false,
 
