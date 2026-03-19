@@ -55,6 +55,9 @@ jobs:
           pwd
           echo "FILES:"
           ls -la
+      - name: Zip app files
+        run: zip -r app.zip . -x "node_modules/*" ".git/*" ".github/*" ".vscode/*" "tests/*" "*.log"
+
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
