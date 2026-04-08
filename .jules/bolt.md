@@ -1,0 +1,3 @@
+## 2024-05-14 - [Memoizing derived state during frequent timer updates]
+**Learning:** In `src/app/page.tsx`, an extraction timer sets state every 100ms, causing 10 re-renders per second. When expensive derived states (like parsing prompts via regex or filtering/reducing arrays of extraction feed results) are computed unmemoized during these frequent renders, it causes significant UI blockage and performance degradation.
+**Action:** Always memoize expensive data computations (using `useMemo`) when they depend on state that rarely changes, especially if the component uses frequent timer-based state updates (like a progress or time tracker) that force rapid re-renders.
