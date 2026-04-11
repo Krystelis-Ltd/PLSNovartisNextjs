@@ -1,0 +1,20 @@
+--- src/app/page.tsx
++++ src/app/page.tsx
+@@ -509,7 +509,7 @@
+       return { ...acc, [finalKey]: feed.parsedObj };
+     }, {}), [extractionFeed, keys, mapping]);
+
+-  const handleChatbotUpdate = (keyToUpdate: string, newValue: any) => {
++  const handleChatbotUpdate = useCallback((keyToUpdate: string, newValue: any) => {
+     setExtractionFeed(prev => prev.map(feed => {
+       const keyIndex = keys.indexOf(feed.title);
+       let finalKey = feed.title;
+@@ -528,7 +528,7 @@
+       }
+       return feed;
+     }));
+-  };
++  }, [keys, mapping]);
+
+   // UI configuration...
+   const tabs = ['Dashboard', 'Documents', 'Pipelines', 'Analytics']

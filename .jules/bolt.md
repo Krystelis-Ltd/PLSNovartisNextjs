@@ -1,0 +1,3 @@
+## 2026-04-11 - Memoizing derived state to prevent UI blockage during rapid re-renders
+**Learning:** In the Dashboard component (`src/app/page.tsx`), a 100ms timer runs during extraction tasks, causing extremely frequent re-renders. When derived states, such as extracting prompts based on the selected readability level or reducing the extraction feed to current fetched answers, are unmemoized, these relatively expensive operations execute on every single tick (10 times a second). This blocks the main thread, leading to noticeable UI sluggishness.
+**Action:** Always strictly memoize derived states (using `useMemo` or `useCallback`) in components that are subject to rapid, interval-driven state updates (like timers or progress bars) to ensure smooth UI performance.
