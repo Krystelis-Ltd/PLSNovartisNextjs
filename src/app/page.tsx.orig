@@ -505,7 +505,7 @@ export default function Dashboard() {
       return { ...acc, [finalKey]: feed.parsedObj };
     }, {}), [extractionFeed, keys, mapping]);
 
-  const handleChatbotUpdate = useCallback((keyToUpdate: string, newValue: any) => {
+  const handleChatbotUpdate = (keyToUpdate: string, newValue: any) => {
     setExtractionFeed(prev => prev.map(feed => {
       const keyIndex = keys.indexOf(feed.title);
       let finalKey = feed.title;
@@ -526,7 +526,7 @@ export default function Dashboard() {
       }
       return feed;
     }));
-  }, [keys, mapping]);
+  };
 
   return (
     <div className="flex flex-col h-full w-full relative gradient-mesh">
@@ -994,4 +994,3 @@ export default function Dashboard() {
     </div>
   )
 }
-
