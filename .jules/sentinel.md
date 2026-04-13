@@ -1,0 +1,4 @@
+## 2025-02-28 - [Information Disclosure in API Routes]
+**Vulnerability:** Several API routes (`upload`, `extract`, `chat`, `refine`, `generate`, `convert-to-markdown`) returned detailed error messages (`error.message` or `String(error)`) in the `NextResponse.json` response sent to the client. This exposes internal server details, file paths, or third-party service specifics (like OpenAI API internals) to users.
+**Learning:** Returning raw error messages directly to the client can lead to Information Disclosure (CWE-209). While detailed logging is essential for debugging, it must be kept server-side (e.g., via `auditLog` or `console.error`) rather than being leaked to the client.
+**Prevention:** Always return generic, safe error messages to the client (e.g., `{ error: "Operation failed" }`) and log the detailed error server-side.
