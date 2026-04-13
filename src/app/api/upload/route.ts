@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
                     status: { code: 400, result: 'FAILURE' },
                     details: { error: msg }
                 });
-                return NextResponse.json({ error: msg }, { status: 400 });
+                return NextResponse.json({ error: 'File exceeds maximum allowed size' }, { status: 400 });
             }
             const ext = '.' + file.name.split('.').pop()?.toLowerCase();
             if (!ALLOWED_FILE_EXTENSIONS.includes(ext as typeof ALLOWED_FILE_EXTENSIONS[number])) {
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
                     status: { code: 400, result: 'FAILURE' },
                     details: { error: msg }
                 });
-                return NextResponse.json({ error: msg }, { status: 400 });
+                return NextResponse.json({ error: 'File has unsupported extension' }, { status: 400 });
             }
         }
 
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
 
         if (uploadedFileIds.length === 0) {
             return NextResponse.json(
-                { success: false, message: 'No files were uploaded successfully.', errors },
+                { success: false, message: 'No files were uploaded successfully.' },
                 { status: 500 }
             );
         }
@@ -122,10 +122,13 @@ export async function POST(request: NextRequest) {
             failed: errors.length,
             uploaded_file_ids: uploadedFileIds,
             vector_store_id: vectorStoreId,
-            errors: errors
+            errors: errors // Keep in internal object, but we will omit it in response to avoid info disclosure
         };
 
-        return NextResponse.json(stats);
+        // Omitting 'errors' from response to avoid disclosing internal server errors to client
+        const { errors: _omit, ...safeStats } = stats;
+
+        return NextResponse.json(safeStats);
 
     } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -137,7 +140,7 @@ export async function POST(request: NextRequest) {
             details: { error: msg }
         });
         return NextResponse.json(
-            { error: "Failed to process upload", details: msg },
+            { error: "Failed to process upload" },
             { status: 500 }
         );
     }
