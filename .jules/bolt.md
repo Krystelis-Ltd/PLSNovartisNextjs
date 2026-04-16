@@ -1,0 +1,3 @@
+## 2024-05-20 - [Memoize heavy computations during frequent ticks]
+**Learning:** The Dashboard component uses a 100ms interval timer (`extractionTimeMs`) which causes the entire component to re-render 10 times a second. Without memoization, expensive functions like `extractPrompts` and heavy array operations like filtering and reducing `extractionFeed` run on every single tick. This blocks the main thread and makes the UI unresponsive during extraction.
+**Action:** Always use `useMemo` for derived states (especially parsing and large array operations) in components that have frequent state updates (like interval timers) to decouple heavy computations from simple visual tick updates.
