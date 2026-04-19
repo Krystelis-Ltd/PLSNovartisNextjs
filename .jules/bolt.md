@@ -1,0 +1,3 @@
+## 2025-04-19 - [Memoize Dashboard derived states to prevent UI blocking]
+**Learning:** The Dashboard component features a 100ms interval timer that runs during data extraction, updating `extractionTimeMs` and triggering rapid re-renders. Because derived data like `promptData` (which parses strings) and `currentFetchedAnswers` (which filters and reduces the entire feed) were not memoized, they ran synchronously on every 100ms tick. This caused unnecessary CPU usage and blocked the main thread.
+**Action:** Always strictly memoize derived states (`useMemo`) and inline prop functions (`useCallback`) in components that have frequent state updates (like progress bars or timers) to decouple heavy computations from simple visual updates.
