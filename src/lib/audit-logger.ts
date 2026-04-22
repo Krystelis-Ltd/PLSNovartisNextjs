@@ -37,12 +37,17 @@ export interface AuditLogParams {
 export function auditLog({ request, action, resource, status, details }: AuditLogParams) {
     const user = getUserIdentity(request);
     
-    // Attempt standard UUID, fallback to basic pseudo-random if unavailable
-    let fallbackId = Math.random().toString(36).substring(2, 10);
-    let uuid = fallbackId;
+    // Attempt standard UUID, fallback to secure random, then pseudo-random
+    let uuid = `legacy-${Math.random().toString(36).substring(2, 10)}`;
     try {
-        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-            uuid = crypto.randomUUID();
+        if (typeof crypto !== 'undefined') {
+            if (crypto.randomUUID) {
+                uuid = crypto.randomUUID();
+            } else if (crypto.getRandomValues) {
+                const array = new Uint8Array(16);
+                crypto.getRandomValues(array);
+                uuid = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+            }
         }
     } catch {
         // ignore
