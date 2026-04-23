@@ -1,0 +1,3 @@
+## 2026-04-23 - [Memoizing derived state and callbacks for tick interval components]
+**Learning:** The Dashboard component has a 100ms interval for extraction progress, which triggers rapid state updates and re-renders. Synchronous recalculation of derived state like `promptData` (via `extractPrompts`) and `currentFetchedAnswers`, as well as recreation of callback props like `handleChatbotUpdate`, blocked the main UI thread and caused performance degradation during rapid tick intervals.
+**Action:** Use `useMemo` to strictly memoize derived state that requires heavy computation or mapping, and `useCallback` for inline functions passed as props, ensuring they are not recreated on every 100ms tick unless their explicit dependencies change.
