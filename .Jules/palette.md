@@ -1,0 +1,3 @@
+## 2024-04-25 - Standardize framer motion icon buttons accessibility
+**Learning:** Icon-only buttons implemented using Framer Motion (`<motion.button>`) and standard standard `<button>` tags within this React app often omit screen reader and keyboard accessibility attributes. Material symbol ligatures (`<span className="material-symbols-outlined">icon_name</span>`) can be read aloud by screen readers if not hidden.
+**Action:** Always add `aria-label` to the `<button>` or `<motion.button>` component, add `aria-hidden="true"` to the inner `<span>` containing the icon text, and apply `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2` tailwind classes directly to the button `className` to ensure clear keyboard focus states.
