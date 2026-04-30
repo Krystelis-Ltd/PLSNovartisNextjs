@@ -34,11 +34,33 @@ export interface AuditLogParams {
     details?: any;
 }
 
+/**
+ * Security: Safely extracts client IP address to prevent IP Spoofing and Log Injection (CRLF).
+ * 1. Takes the *last* appended IP from x-forwarded-for (set by the load balancer/proxy, not the client).
+ * 2. Strips all carriage returns/newlines to prevent log forging.
+ * 3. Truncates to max IPv6 length (45 chars).
+ */
+function getSecureIp(headers: Headers): string {
+    const azureIp = headers.get('x-azure-clientip');
+    if (azureIp) return azureIp.trim().replace(/[\r\n]/g, '').substring(0, 45);
+
+    const forwardedFor = headers.get('x-forwarded-for');
+    if (forwardedFor) {
+        const parts = forwardedFor.split(',');
+        return parts[parts.length - 1].trim().replace(/[\r\n]/g, '').substring(0, 45);
+    }
+
+    const realIp = headers.get('x-real-ip');
+    if (realIp) return realIp.trim().replace(/[\r\n]/g, '').substring(0, 45);
+
+    return 'unknown';
+}
+
 export function auditLog({ request, action, resource, status, details }: AuditLogParams) {
     const user = getUserIdentity(request);
     
     // Attempt standard UUID, fallback to basic pseudo-random if unavailable
-    let fallbackId = Math.random().toString(36).substring(2, 10);
+    const fallbackId = Math.random().toString(36).substring(2, 10);
     let uuid = fallbackId;
     try {
         if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -51,7 +73,7 @@ export function auditLog({ request, action, resource, status, details }: AuditLo
     // Extract headers
     const sessionId = request.headers.get('x-session-id') || `sess_${uuid.substring(0, 8)}`;
     const correlationId = request.headers.get('x-correlation-id') || `corr_${uuid.substring(0, 8)}`;
-    const publicIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const publicIp = getSecureIp(request.headers);
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     let endpoint = 'unknown';
