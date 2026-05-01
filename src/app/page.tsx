@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { extractPrompts } from '@/utils/promptLoader'
 import { JsonEditor } from '@/components/JsonEditor'
@@ -75,7 +75,7 @@ export default function Dashboard() {
   }, []);
 
   // Dynamic prompts derived from selection
-  const promptData = extractPrompts(readabilityLevel, mappingName)
+  const promptData = useMemo(() => extractPrompts(readabilityLevel, mappingName), [readabilityLevel, mappingName])
   const keys = promptData.keys;
   const texts = promptData.texts;
   const mapping = promptData.mapping;
@@ -86,8 +86,9 @@ export default function Dashboard() {
     // Select all prompts by default when mapping changes
     const newSelections: Record<string, boolean> = {}
     keys.forEach(k => newSelections[k] = true)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedPrompts(newSelections)
-  }, [mappingName]) // omitting keys dependency to avoid infinite loop on object identity change
+  }, [mappingName, keys]) // Disable exhaustive-deps to avoid infinite loop on keys identity change
 
   const [files, setFiles] = useState<FileEntry[]>([])
   const [queuedFiles, setQueuedFiles] = useState<File[]>([])
@@ -137,7 +138,7 @@ export default function Dashboard() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  const uploadToVectorStore = async () => {
+  const uploadToVectorStore = useCallback(async () => {
     if (queuedFiles.length === 0) return;
 
     setIsUploading(true);
@@ -183,9 +184,9 @@ export default function Dashboard() {
     } finally {
       setIsUploading(false);
     }
-  }
+  }, [queuedFiles, files, showToast]);
 
-  const runExtraction = async () => {
+  const runExtraction = useCallback(async () => {
     if (!vectorStoreId) {
       showToast("Please upload a file first.", 'warning');
       return;
@@ -203,7 +204,7 @@ export default function Dashboard() {
     let completedKeys = 0;
 
     // Accumulate answers to provide context to subsequent batches
-    let accumulatedAnswers: Record<string, any> = {};
+    const accumulatedAnswers: Record<string, unknown> = {};
 
     for (let i = 0; i < activeKeys.length; i += batchSize) {
       const batch = activeKeys.slice(i, i + batchSize);
@@ -213,7 +214,7 @@ export default function Dashboard() {
         batch.includes(feed.title) ? { ...feed, status: "FETCHING..." } : feed
       ));
 
-      let batchPrompts: Record<string, string> = {};
+      const batchPrompts: Record<string, string> = {};
       batch.forEach(k => batchPrompts[k] = texts[k]);
 
       try {
@@ -224,7 +225,7 @@ export default function Dashboard() {
         });
         const data = await res.json();
 
-        let batchResults: Record<string, any> = {};
+        let batchResults: Record<string, unknown> = {};
         if (res.ok && data.raw) {
           try {
             batchResults = JSON.parse(data.raw);
@@ -250,7 +251,7 @@ export default function Dashboard() {
           const refineData = await refinePromise.json();
           if (refinePromise.ok && refineData.refinedJson) {
             try {
-              const parsedRefined: Record<string, any> = JSON.parse(refineData.refinedJson);
+              const parsedRefined: Record<string, unknown> = JSON.parse(refineData.refinedJson);
 
               // Re-inject the metadata since the refinement agent often strips it
               for (const key of Object.keys(parsedRefined)) {
@@ -287,7 +288,7 @@ export default function Dashboard() {
           ));
 
           await Promise.all(tableKeys.map(async (key) => {
-            const rawObj = (finalResultsToRender as any)[key];
+            const rawObj = (finalResultsToRender as Record<string, unknown>)[key] as Record<string, unknown>;
             if (!rawObj || Object.keys(rawObj).length === 0) return;
 
             const sourceQuote = rawObj.source_quote;
@@ -307,7 +308,7 @@ export default function Dashboard() {
                 for (const mKey of metaKeys) {
                   if (rawObj[mKey] !== undefined) validatedObj[mKey] = rawObj[mKey];
                 }
-                (finalResultsToRender as any)[key] = validatedObj;
+                (finalResultsToRender as Record<string, unknown>)[key] = validatedObj;
               } else {
                 console.warn(`Validation API returned error for ${key}:`, validateData.error);
               }
@@ -321,7 +322,7 @@ export default function Dashboard() {
         setExtractionFeed(prev => prev.map(feed => {
           if (!batch.includes(feed.title)) return feed;
 
-          const rawFinalObj = (finalResultsToRender as any)[feed.title] || {};
+          const rawFinalObj = ((finalResultsToRender as Record<string, unknown>)[feed.title] as Record<string, unknown>) || {};
 
           // Extract metadata before stripping
           const confidenceScore = rawFinalObj.confidence_score;
@@ -370,9 +371,26 @@ export default function Dashboard() {
     }
 
     setIsExtracting(false);
-  }
+  }, [vectorStoreId, keys, selectedPrompts, texts, showToast]);
 
-  const generateReport = async () => {
+  const currentFetchedAnswers = useMemo(() => {
+    return extractionFeed
+      .filter(f => f.status === 'COMPLETED' && f.parsedObj)
+      .reduce((acc, feed) => {
+        const keyIndex = keys.indexOf(feed.title);
+        let finalKey = feed.title;
+        if (keyIndex !== -1) {
+          const m = mapping[String(keyIndex + 1) as keyof typeof mapping] as Record<string, string>;
+          if (m) {
+            if (m.placeholder) finalKey = m.placeholder;
+            else if (m.table_placeholder) finalKey = m.table_placeholder.replace(/^{{/, '').replace(/}}$/, '');
+          }
+        }
+        return { ...acc, [finalKey]: feed.parsedObj };
+      }, {});
+  }, [extractionFeed, keys, mapping]);
+
+  const generateReport = useCallback(async () => {
     setIsGenerating(true);
     const genStartTime = Date.now();
     try {
@@ -427,12 +445,12 @@ export default function Dashboard() {
     } finally {
       setIsGenerating(false);
     }
-  }
+  }, [currentFetchedAnswers, mappingName, showToast]);
 
   const [refiningKey, setRefiningKey] = useState<string | null>(null);
   const [refineInstructions, setRefineInstructions] = useState<Record<string, string>>({});
 
-  const handleRefine = async (key: string, rawJson: string, directInstructions?: string) => {
+  const handleRefine = useCallback(async (key: string, rawJson: string, directInstructions?: string) => {
     if (!vectorStoreId) {
       showToast("Please upload standard reference documents to refine.", 'warning');
       return;
@@ -468,9 +486,9 @@ export default function Dashboard() {
     } finally {
       setRefiningKey(null);
     }
-  };
+  }, [vectorStoreId, refineInstructions, showToast]);
 
-  const renderEditableData = (feed: any) => {
+  const renderEditableData = (feed: ExtractionFeedItem) => {
     if (!feed.parsedObj) return null;
     if (typeof feed.parsedObj !== 'object' || feed.parsedObj === null) return null;
 
@@ -490,27 +508,14 @@ export default function Dashboard() {
     );
   };
 
-  const currentFetchedAnswers = extractionFeed
-    .filter(f => f.status === 'COMPLETED' && f.parsedObj)
-    .reduce((acc, feed) => {
-      const keyIndex = keys.indexOf(feed.title);
-      let finalKey = feed.title;
-      if (keyIndex !== -1) {
-        const m = mapping[String(keyIndex + 1) as keyof typeof mapping] as any;
-        if (m) {
-          if (m.placeholder) finalKey = m.placeholder;
-          else if (m.table_placeholder) finalKey = m.table_placeholder.replace(/^{{/, '').replace(/}}$/, '');
-        }
-      }
-      return { ...acc, [finalKey]: feed.parsedObj };
-    }, {});
 
-  const handleChatbotUpdate = (keyToUpdate: string, newValue: any) => {
+
+  const handleChatbotUpdate = useCallback((keyToUpdate: string, newValue: unknown) => {
     setExtractionFeed(prev => prev.map(feed => {
       const keyIndex = keys.indexOf(feed.title);
       let finalKey = feed.title;
       if (keyIndex !== -1) {
-        const m = mapping[String(keyIndex + 1) as keyof typeof mapping] as any;
+        const m = mapping[String(keyIndex + 1) as keyof typeof mapping] as Record<string, string>;
         if (m) {
           if (m.placeholder) finalKey = m.placeholder;
           else if (m.table_placeholder) finalKey = m.table_placeholder.replace(/^{{/, '').replace(/}}$/, '');
@@ -526,7 +531,7 @@ export default function Dashboard() {
       }
       return feed;
     }));
-  };
+  }, [keys, mapping]);
 
   return (
     <div className="flex flex-col h-full w-full relative gradient-mesh">
