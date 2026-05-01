@@ -34,11 +34,24 @@ export interface AuditLogParams {
     details?: any;
 }
 
+function getSecureIp(request: NextRequest): string {
+    const azureIp = request.headers.get('x-azure-clientip');
+    if (azureIp) return azureIp;
+
+    const forwardedFor = request.headers.get('x-forwarded-for');
+    if (forwardedFor) {
+        const ips = forwardedFor.split(',').map(ip => ip.trim());
+        return ips[ips.length - 1]; // Use the last appended IP from proxy
+    }
+
+    return 'unknown';
+}
+
 export function auditLog({ request, action, resource, status, details }: AuditLogParams) {
     const user = getUserIdentity(request);
     
     // Attempt standard UUID, fallback to basic pseudo-random if unavailable
-    let fallbackId = Math.random().toString(36).substring(2, 10);
+    const fallbackId = Math.random().toString(36).substring(2, 10);
     let uuid = fallbackId;
     try {
         if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -51,7 +64,7 @@ export function auditLog({ request, action, resource, status, details }: AuditLo
     // Extract headers
     const sessionId = request.headers.get('x-session-id') || `sess_${uuid.substring(0, 8)}`;
     const correlationId = request.headers.get('x-correlation-id') || `corr_${uuid.substring(0, 8)}`;
-    const publicIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const publicIp = getSecureIp(request);
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     let endpoint = 'unknown';
