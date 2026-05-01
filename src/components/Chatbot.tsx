@@ -91,8 +91,8 @@ export function Chatbot({ vectorStoreId, fetchedAnswers, onUpdateData }: Chatbot
                                 <span className="material-symbols-outlined text-xl">forum</span>
                                 <span className="font-bold text-sm">Contextual Chatbot</span>
                             </div>
-                            <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 rounded-full p-1 transition-colors">
-                                <span className="material-symbols-outlined text-lg block">close</span>
+                            <button onClick={() => setIsOpen(false)} aria-label="Close chat" className="hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded-full p-1 transition-colors">
+                                <span className="material-symbols-outlined text-lg block" aria-hidden="true">close</span>
                             </button>
                         </div>
 
@@ -164,9 +164,10 @@ export function Chatbot({ vectorStoreId, fetchedAnswers, onUpdateData }: Chatbot
                                             whileTap={{ scale: 0.92 }}
                                             onClick={handleSend}
                                             disabled={!input.trim() || isLoading}
-                                            className="bg-[var(--color-primary)] text-white h-10 w-10 rounded-full flex items-center justify-center hover:bg-[var(--color-primary-dark)] transition-colors disabled:opacity-50 shrink-0 shadow-md"
+                                            aria-label="Send message"
+                                            className="bg-[var(--color-primary)] text-white h-10 w-10 rounded-full flex items-center justify-center hover:bg-[var(--color-primary-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] transition-colors disabled:opacity-50 shrink-0 shadow-md"
                                         >
-                                            <span className="material-symbols-outlined text-[18px]">send</span>
+                                            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">send</span>
                                         </motion.button>
                                     </div>
                                     <div className="text-[10px] text-slate-400 dark:text-slate-500 text-center font-medium">

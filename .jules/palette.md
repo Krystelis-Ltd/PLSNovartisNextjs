@@ -1,0 +1,3 @@
+## 2024-05-01 - Add ARIA Labels and Focus States to Chatbot Buttons
+**Learning:** Icon-only buttons implemented using Framer Motion (`<motion.button>`) or standard HTML buttons need explicit ARIA labels and focus-visible classes for keyboard accessibility. The internal material symbol span should also have `aria-hidden="true"` applied to avoid redundant screen reader callouts.
+**Action:** When adding or updating icon-only buttons, especially in reusable components like the Chatbot panel, consistently apply `aria-label` for screen readers and `focus-visible:outline-none focus-visible:ring-2` for keyboard focus indicators.
