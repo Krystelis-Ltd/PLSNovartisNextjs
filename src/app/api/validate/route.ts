@@ -1,32 +1,33 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getOpenAIClient } from '@/lib/openai';
-import { withRetry } from '@/lib/retry';
-import { AI_MODEL } from '@/lib/constants';
-import { getUserIdentity } from '@/lib/auth';
-import { auditLog } from '@/lib/audit-logger';
-import type { OpenAIResponsePayload, ValidateRequest } from '@/types';
+import { NextRequest, NextResponse } from "next/server";
+import { getOpenAIClient } from "@/lib/openai";
+import { withRetry } from "@/lib/retry";
+import { AI_MODEL } from "@/lib/constants";
+import { getUserIdentity } from "@/lib/auth";
+import { auditLog } from "@/lib/audit-logger";
+import type { OpenAIResponsePayload, ValidateRequest } from "@/types";
 
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
-    try {
-        const userId = getUserIdentity(request);
-        const body: ValidateRequest = await request.json();
-        const { keyName, extractedData, sourceQuote } = body;
+  try {
+    const userId = getUserIdentity(request);
+    const body: ValidateRequest = await request.json();
+    const { keyName, extractedData, sourceQuote } = body;
 
-        auditLog({
-            request, action: 'DATA_VALIDATE',
-            resource: { type: 'API', path: '/api/validate' },
-            status: { code: 200, result: 'SUCCESS' },
-            details: { keyName }
-        });
+    auditLog({
+      request,
+      action: "DATA_VALIDATE",
+      resource: { type: "API", path: "/api/validate" },
+      status: { code: 200, result: "SUCCESS" },
+      details: { keyName },
+    });
 
-        // Only validate specific complex tables
-        if (!keyName.includes('table')) {
-            return NextResponse.json({ validatedData: extractedData });
-        }
+    // Only validate specific complex tables
+    if (!keyName.includes("table")) {
+      return NextResponse.json({ validatedData: extractedData });
+    }
 
-        const developerMessage = `
+    const developerMessage = `
 <system_role>
 You are an expert Clinical Data Auditor (Red Team).
 Your job is to independently verify a complex data table extracted by an AI against its source text.
@@ -44,7 +45,7 @@ You MUST return ONLY valid JSON matching the exact structure of the input data, 
 </output_rules>
 `;
 
-        const userPrompt = `
+    const userPrompt = `
 SOURCE TEXT (Use this as ground truth):
 ${sourceQuote || "No direct quote available, evaluate internal math logic (e.g., percentages)."}
 
@@ -52,41 +53,57 @@ DATA TO AUDIT (JSON):
 ${JSON.stringify(extractedData)}
 `;
 
-        const raw = await withRetry(async () => {
-            const openai = getOpenAIClient();
-            const response = await (openai as unknown as { responses: { create: (opts: Record<string, unknown>) => Promise<OpenAIResponsePayload> } }).responses.create({
-                model: AI_MODEL,
-                instructions: developerMessage,
-                input: userPrompt,
-                reasoning: { effort: "low" }
-            });
-
-            const text = response.output_text || "";
-            if (!text) throw new Error("Empty response from validation AI");
-            return text;
-        }, { label: 'Validation Agent' });
-
-        const cleaned = raw.replace(/^```json/mi, '').replace(/```$/m, '').trim();
-
-        let parsedValidatedData;
-        try {
-            parsedValidatedData = JSON.parse(cleaned);
-        } catch {
-            console.warn("[validate] AI returned invalid JSON, falling back to original data");
-            parsedValidatedData = extractedData;
-        }
-
-        return NextResponse.json({ validatedData: parsedValidatedData });
-
-    } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
-        console.error("[validate] Error:", msg);
-        auditLog({
-            request, action: 'SYSTEM_ERROR',
-            resource: { type: 'API', path: '/api/validate' },
-            status: { code: 500, result: 'FAILURE' },
-            details: { error: msg }
+    const raw = await withRetry(
+      async () => {
+        const openai = getOpenAIClient();
+        const response = await (
+          openai as unknown as {
+            responses: {
+              create: (
+                opts: Record<string, unknown>,
+              ) => Promise<OpenAIResponsePayload>;
+            };
+          }
+        ).responses.create({
+          model: AI_MODEL,
+          instructions: developerMessage,
+          input: userPrompt,
+          reasoning: { effort: "low" },
         });
-        return NextResponse.json({ error: "Validation failed" }, { status: 500 });
+
+        const text = response.output_text || "";
+        if (!text) throw new Error("Empty response from validation AI");
+        return text;
+      },
+      { label: "Validation Agent" },
+    );
+
+    const cleaned = raw
+      .replace(/^```json/im, "")
+      .replace(/```$/m, "")
+      .trim();
+
+    let parsedValidatedData;
+    try {
+      parsedValidatedData = JSON.parse(cleaned);
+    } catch {
+      console.warn(
+        "[validate] AI returned invalid JSON, falling back to original data",
+      );
+      parsedValidatedData = extractedData;
     }
+
+    return NextResponse.json({ validatedData: parsedValidatedData });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[validate] Error:", msg);
+    auditLog({
+      request,
+      action: "SYSTEM_ERROR",
+      resource: { type: "API", path: "/api/validate" },
+      status: { code: 500, result: "FAILURE" },
+      details: { error: msg },
+    });
+    return NextResponse.json({ error: "Validation failed" }, { status: 500 });
+  }
 }

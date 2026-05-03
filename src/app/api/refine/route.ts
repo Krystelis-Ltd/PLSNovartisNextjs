@@ -1,37 +1,46 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getOpenAIClient } from '@/lib/openai';
-import { AI_MODEL } from '@/lib/constants';
-import { getUserIdentity } from '@/lib/auth';
-import { auditLog } from '@/lib/audit-logger';
-import type { OpenAIResponsePayload, RefineRequest } from '@/types';
+import { NextRequest, NextResponse } from "next/server";
+import { getOpenAIClient } from "@/lib/openai";
+import { AI_MODEL } from "@/lib/constants";
+import { getUserIdentity } from "@/lib/auth";
+import { auditLog } from "@/lib/audit-logger";
+import type { OpenAIResponsePayload, RefineRequest } from "@/types";
 
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
-    const openai = getOpenAIClient();
-    try {
-        const userId = getUserIdentity(request);
-        const body: RefineRequest = await request.json();
-        const { rawJson, userInstructions, vectorStoreId } = body;
+  const openai = getOpenAIClient();
+  try {
+    const userId = getUserIdentity(request);
+    const body: RefineRequest = await request.json();
+    const { rawJson, userInstructions, vectorStoreId } = body;
 
-        if (!rawJson) {
-            return NextResponse.json({ error: 'Missing rawJson to refine' }, { status: 400 });
-        }
+    if (!rawJson) {
+      return NextResponse.json(
+        { error: "Missing rawJson to refine" },
+        { status: 400 },
+      );
+    }
 
-        const keysBeingRefined = typeof rawJson === 'string' ? 'String Payload' : Object.keys(rawJson).join(', ');
-        auditLog({
-            request, action: 'DATA_REFINE',
-            resource: { type: 'API', path: '/api/refine' },
-            status: { code: 200, result: 'SUCCESS' },
-            details: { instructions: userInstructions, keys: keysBeingRefined }
-        });
+    const keysBeingRefined =
+      typeof rawJson === "string"
+        ? "String Payload"
+        : Object.keys(rawJson).join(", ");
+    auditLog({
+      request,
+      action: "DATA_REFINE",
+      resource: { type: "API", path: "/api/refine" },
+      status: { code: 200, result: "SUCCESS" },
+      details: { instructions: userInstructions, keys: keysBeingRefined },
+    });
 
-        const KB_VECTOR_STORE_ID = process.env.NOVARTIS_KB_VECTOR_STORE_ID || "";
-        if (!KB_VECTOR_STORE_ID) {
-            console.warn("[refine] NOVARTIS_KB_VECTOR_STORE_ID not set, refinement will proceed without KB lookup");
-        }
+    const KB_VECTOR_STORE_ID = process.env.NOVARTIS_KB_VECTOR_STORE_ID || "";
+    if (!KB_VECTOR_STORE_ID) {
+      console.warn(
+        "[refine] NOVARTIS_KB_VECTOR_STORE_ID not set, refinement will proceed without KB lookup",
+      );
+    }
 
-        const REFINEMENT_SYSTEM_PROMPT = `<system_role>
+    const REFINEMENT_SYSTEM_PROMPT = `<system_role>
 You are the "Novartis Language Refinement Specialist," a medical writing editor 
 specialized in Plain Language Summaries (PLS). Your ONLY job is to refine the 
 WRITING STYLE and TERMINOLOGY in the provided JSON data using the provided 
@@ -131,11 +140,11 @@ Your ENTIRE response must be a single, valid, raw JSON object.
 - The JSON structure must match the input exactly
 </output_format>`;
 
-        const instructionsText = userInstructions
-            ? `A user has provided the following extra instructions: '${userInstructions}'`
-            : ``;
+    const instructionsText = userInstructions
+      ? `A user has provided the following extra instructions: '${userInstructions}'`
+      : ``;
 
-        const userPrompt = `Please refine the language and terminology in the following JSON data.
+    const userPrompt = `Please refine the language and terminology in the following JSON data.
 Use file_search to look up terms in the Novartis Knowledge Base.
 Remember: ONLY refine the language/terms. DO NOT change any factual data (numbers, dates, results).
 dont not change wording of full title keep it as it is recieved. out answers will go direcly inside the output document so dont add extra information in the output.
@@ -147,65 +156,79 @@ ${instructionsText}
 JSON to refine:
 ${rawJson}`;
 
-        let refinedJson = "";
+    let refinedJson = "";
 
-        try {
-            const vectorStoreIds = KB_VECTOR_STORE_ID ? [KB_VECTOR_STORE_ID] : [];
-            const tools = vectorStoreIds.length > 0
-                ? [{ type: "file_search", vector_store_ids: vectorStoreIds }]
-                : [];
+    try {
+      const vectorStoreIds = KB_VECTOR_STORE_ID ? [KB_VECTOR_STORE_ID] : [];
+      const tools =
+        vectorStoreIds.length > 0
+          ? [{ type: "file_search", vector_store_ids: vectorStoreIds }]
+          : [];
 
-            const response = await (openai as unknown as { responses: { create: (opts: Record<string, unknown>) => Promise<OpenAIResponsePayload> } }).responses.create({
-                model: AI_MODEL,
-                instructions: REFINEMENT_SYSTEM_PROMPT,
-                input: userPrompt,
-                text: { format: { type: "json_object" } },
-                ...(tools.length > 0 ? { tools } : {}),
-            });
-
-            // Extract text from the responses.create payload structure
-            if (response.output_text) {
-                refinedJson = response.output_text;
-            } else if (response.output && Array.isArray(response.output)) {
-                for (const part of response.output) {
-                    if (part.content && Array.isArray(part.content)) {
-                        for (const item of part.content) {
-                            if (item.text) {
-                                refinedJson = item.text.trim();
-                                break;
-                            }
-                        }
-                    }
-                    if (refinedJson) break;
-                }
-            } else if (response.choices?.[0]?.message?.content) {
-                refinedJson = response.choices[0].message.content;
-            }
-
-            if (!refinedJson) {
-                throw new Error("Empty response from AI refinement");
-            }
-
-            // Clean up any rogue markdown formatting returned by AI
-            refinedJson = refinedJson.replace(/^```[a-z]*\n/i, '').replace(/\n```$/i, '').trim();
-
-            return NextResponse.json({ refinedJson });
-
-        } catch (openaiError: unknown) {
-            const msg = openaiError instanceof Error ? openaiError.message : String(openaiError);
-            console.error("[refine] OpenAI API Error:", msg);
-            throw openaiError;
+      const response = await (
+        openai as unknown as {
+          responses: {
+            create: (
+              opts: Record<string, unknown>,
+            ) => Promise<OpenAIResponsePayload>;
+          };
         }
+      ).responses.create({
+        model: AI_MODEL,
+        instructions: REFINEMENT_SYSTEM_PROMPT,
+        input: userPrompt,
+        text: { format: { type: "json_object" } },
+        ...(tools.length > 0 ? { tools } : {}),
+      });
 
-    } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
-        console.error("[refine] Error:", msg);
-        auditLog({
-            request, action: 'SYSTEM_ERROR',
-            resource: { type: 'API', path: '/api/refine' },
-            status: { code: 500, result: 'FAILURE' },
-            details: { error: msg }
-        });
-        return NextResponse.json({ error: "Refinement failed", details: msg }, { status: 500 });
+      // Extract text from the responses.create payload structure
+      if (response.output_text) {
+        refinedJson = response.output_text;
+      } else if (response.output && Array.isArray(response.output)) {
+        for (const part of response.output) {
+          if (part.content && Array.isArray(part.content)) {
+            for (const item of part.content) {
+              if (item.text) {
+                refinedJson = item.text.trim();
+                break;
+              }
+            }
+          }
+          if (refinedJson) break;
+        }
+      } else if (response.choices?.[0]?.message?.content) {
+        refinedJson = response.choices[0].message.content;
+      }
+
+      if (!refinedJson) {
+        throw new Error("Empty response from AI refinement");
+      }
+
+      // Clean up any rogue markdown formatting returned by AI
+      refinedJson = refinedJson
+        .replace(/^```[a-z]*\n/i, "")
+        .replace(/\n```$/i, "")
+        .trim();
+
+      return NextResponse.json({ refinedJson });
+    } catch (openaiError: unknown) {
+      const msg =
+        openaiError instanceof Error
+          ? openaiError.message
+          : String(openaiError);
+      console.error("[refine] OpenAI API Error:", msg);
+      throw openaiError;
     }
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[refine] Error:", msg);
+    auditLog({
+      request,
+      action: "SYSTEM_ERROR",
+      resource: { type: "API", path: "/api/refine" },
+      status: { code: 500, result: "FAILURE" },
+      details: { error: msg },
+    });
+    return NextResponse.json({ error: "Refinement failed" }, { status: 500 });
+  }
 }
