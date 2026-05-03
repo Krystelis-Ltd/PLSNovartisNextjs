@@ -106,9 +106,10 @@ export function PipelineTestUI({ onClose }: TestUIProps) {
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            aria-label="Close"
+            className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors focus-visible:ring-2 focus-visible:outline-none"
           >
-            <span className="material-symbols-outlined">close</span>
+            <span className="material-symbols-outlined" aria-hidden="true">close</span>
           </button>
         </div>
 
@@ -204,8 +205,8 @@ export function PipelineTestUI({ onClose }: TestUIProps) {
                     <span className="material-symbols-outlined text-blue-500 text-[20px]">format_quote</span>
                     <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Source Document Proof</h3>
                   </div>
-                  <button onClick={() => setSourceModal(null)} className="p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-700/60">
-                    <span className="material-symbols-outlined text-slate-500 text-[20px]">close</span>
+                  <button onClick={() => setSourceModal(null)} aria-label="Close" className="p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-700/60 focus-visible:ring-2 focus-visible:outline-none">
+                    <span className="material-symbols-outlined text-slate-500 text-[20px]" aria-hidden="true">close</span>
                   </button>
                 </div>
                 <div className="px-5 py-4 max-h-[50vh] overflow-y-auto">

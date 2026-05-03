@@ -720,8 +720,8 @@ export default function Dashboard() {
                         <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{file.name}</p>
                         <p className="text-xs text-amber-600/70">{(file.size / 1024 / 1024).toFixed(2)} MB • Queued</p>
                       </div>
-                      <button onClick={() => setQueuedFiles(prev => prev.filter(f => f.name !== file.name))} className="text-slate-400 hover:text-red-500 transition-colors p-1" title="Remove file">
-                        <span className="material-symbols-outlined text-lg block">close</span>
+                      <button onClick={() => setQueuedFiles(prev => prev.filter(f => f.name !== file.name))} aria-label="Remove file" className="text-slate-400 hover:text-red-500 transition-colors p-1 focus-visible:ring-2 focus-visible:outline-none" title="Remove file">
+                        <span className="material-symbols-outlined text-lg block" aria-hidden="true">close</span>
                       </button>
                     </div>
                   ))}
@@ -945,8 +945,8 @@ export default function Dashboard() {
                     <span className="material-symbols-outlined text-[var(--color-primary)] text-[20px]">format_quote</span>
                     <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 tracking-wide">Source Document Proof</h3>
                   </div>
-                  <button onClick={() => setSourceModal(null)} className="p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors">
-                    <span className="material-symbols-outlined text-slate-500 text-[20px]">close</span>
+                  <button onClick={() => setSourceModal(null)} aria-label="Close" className="p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors focus-visible:ring-2 focus-visible:outline-none">
+                    <span className="material-symbols-outlined text-slate-500 text-[20px]" aria-hidden="true">close</span>
                   </button>
                 </div>
 
