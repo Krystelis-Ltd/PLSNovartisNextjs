@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getOpenAIClient } from '@/lib/openai';
-import { withRetry } from '@/lib/retry';
-import { AI_MODEL } from '@/lib/constants';
-import { getUserIdentity } from '@/lib/auth';
-import { auditLog } from '@/lib/audit-logger';
-import type { OpenAIResponsePayload, ExtractRequest } from '@/types';
+import { NextRequest, NextResponse } from "next/server";
+import { getOpenAIClient } from "@/lib/openai";
+import { withRetry } from "@/lib/retry";
+import { AI_MODEL } from "@/lib/constants";
+import { getUserIdentity } from "@/lib/auth";
+import { auditLog } from "@/lib/audit-logger";
+import type { OpenAIResponsePayload, ExtractRequest } from "@/types";
 
 export const maxDuration = 300;
 
@@ -20,12 +20,12 @@ export const maxDuration = 300;
 
 // Agent 1: Retrieval - Extract raw scientific data from documents
 async function runRetrievalAgent(
-    keys: string[],
-    batchPrompts: Record<string, string>,
-    vectorStoreId: string,
-    contextData: Record<string, unknown> | null
+  keys: string[],
+  batchPrompts: Record<string, string>,
+  vectorStoreId: string,
+  contextData: Record<string, unknown> | null,
 ): Promise<string> {
-    const retrievalSystemPrompt = `
+  const retrievalSystemPrompt = `
 <system_role>
 You are "Agent 1: Scientific Document Retrieval Specialist."
 Your ONLY job is to accurately EXTRACT raw data from the uploaded clinical/scientific documents.
@@ -45,10 +45,12 @@ ${contextData ? JSON.stringify(contextData, null, 2) : "No previous context comp
 </previous_extractions_context>
 `;
 
-    const combinedPrompt = `Extract the following data points from the provided documents. Return raw scientific data as-is from the source.
+  const combinedPrompt = `Extract the following data points from the provided documents. Return raw scientific data as-is from the source.
 You MUST return a SINGLE valid JSON object with the exact TASK KEYs below.
 
-${keys.map(k => `==============================
+${keys
+  .map(
+    (k) => `==============================
 TASK KEY: "${k}"
 EXTRACTION INSTRUCTIONS:
 ${batchPrompts[k]}
@@ -61,31 +63,46 @@ Your output for "${k}" MUST match this schema:
   "source_file": "document.pdf",
   "source_page": "Page 5",
   "source_section": "2.1 Background"
-}`).join('\n\n')}
+}`,
+  )
+  .join("\n\n")}
 `;
 
-    return withRetry(async () => {
-        const openai = getOpenAIClient();
-        const response = await (openai as unknown as { responses: { create: (opts: Record<string, unknown>) => Promise<OpenAIResponsePayload> } }).responses.create({
-            model: AI_MODEL,
-            instructions: retrievalSystemPrompt,
-            input: combinedPrompt,
-            reasoning: { effort: "low" },
-            tools: [{
-                type: "file_search",
-                vector_store_ids: [vectorStoreId],
-            }],
-            text: {}
-        });
-        const raw = response.output_text || "";
-        if (!raw) throw new Error("Empty response from retrieval agent");
-        return raw;
-    }, { label: 'Retrieval Agent' });
+  return withRetry(
+    async () => {
+      const openai = getOpenAIClient();
+      const response = await (
+        openai as unknown as {
+          responses: {
+            create: (
+              opts: Record<string, unknown>,
+            ) => Promise<OpenAIResponsePayload>;
+          };
+        }
+      ).responses.create({
+        model: AI_MODEL,
+        instructions: retrievalSystemPrompt,
+        input: combinedPrompt,
+        reasoning: { effort: "low" },
+        tools: [
+          {
+            type: "file_search",
+            vector_store_ids: [vectorStoreId],
+          },
+        ],
+        text: {},
+      });
+      const raw = response.output_text || "";
+      if (!raw) throw new Error("Empty response from retrieval agent");
+      return raw;
+    },
+    { label: "Retrieval Agent" },
+  );
 }
 
 // Agent 2: Conversion - Convert scientific language to plain language
 async function runConversionAgent(rawExtraction: string): Promise<string> {
-    const conversionSystemPrompt = `
+  const conversionSystemPrompt = `
 <system_role>
 You are "Agent 2: Plain Language Conversion Specialist."
 Your job is to take raw scientific/clinical data and convert ALL text values into clear, plain language
@@ -103,84 +120,108 @@ that a 6th-8th grade reader can understand, while preserving the exact JSON stru
 </conversion_rules>
 `;
 
-    const conversionPrompt = `Convert the following extracted scientific data into plain, accessible language.
+  const conversionPrompt = `Convert the following extracted scientific data into plain, accessible language.
 Keep the JSON structure identical. Only simplify the text content within string values.
 
 RAW SCIENTIFIC DATA:
 ${rawExtraction}`;
 
-    return withRetry(async () => {
-        const openai = getOpenAIClient();
-        const response = await (openai as unknown as { responses: { create: (opts: Record<string, unknown>) => Promise<OpenAIResponsePayload> } }).responses.create({
-            model: AI_MODEL,
-            instructions: conversionSystemPrompt,
-            input: conversionPrompt,
-            reasoning: { effort: "low" },
-            text: {}
-        });
-        const converted = response.output_text || "";
-        if (!converted) throw new Error("Empty response from conversion agent");
-        return converted;
-    }, { label: 'Conversion Agent' });
+  return withRetry(
+    async () => {
+      const openai = getOpenAIClient();
+      const response = await (
+        openai as unknown as {
+          responses: {
+            create: (
+              opts: Record<string, unknown>,
+            ) => Promise<OpenAIResponsePayload>;
+          };
+        }
+      ).responses.create({
+        model: AI_MODEL,
+        instructions: conversionSystemPrompt,
+        input: conversionPrompt,
+        reasoning: { effort: "low" },
+        text: {},
+      });
+      const converted = response.output_text || "";
+      if (!converted) throw new Error("Empty response from conversion agent");
+      return converted;
+    },
+    { label: "Conversion Agent" },
+  );
 }
 
 function stripMarkdownFences(text: string): string {
-    return text.replace(/^```json/mi, '').replace(/```$/m, '').trim();
+  return text
+    .replace(/^```json/im, "")
+    .replace(/```$/m, "")
+    .trim();
 }
 
 export async function POST(request: NextRequest) {
-    try {
-        const userId = getUserIdentity(request);
-        const body: ExtractRequest = await request.json();
-        const { batchPrompts, vectorStoreId, contextData } = body;
+  try {
+    const userId = getUserIdentity(request);
+    const body: ExtractRequest = await request.json();
+    const { batchPrompts, vectorStoreId, contextData } = body;
 
-        if (!batchPrompts || typeof batchPrompts !== 'object' || !vectorStoreId) {
-            return NextResponse.json({ error: 'Missing batchPrompts or vectorStoreId' }, { status: 400 });
-        }
-
-        const keys = Object.keys(batchPrompts);
-        auditLog({
-            request, action: 'DATA_EXTRACT',
-            resource: { type: 'API', path: '/api/extract' },
-            status: { code: 200, result: 'SUCCESS' },
-            details: { keys, vectorStoreId }
-        });
-
-        // === AGENT 1: Retrieval ===
-        console.log("[extract] Agent 1 (Retrieval): Starting for keys:", keys);
-        let rawExtraction = await runRetrievalAgent(keys, batchPrompts, vectorStoreId, contextData ?? null);
-
-        if (!rawExtraction) {
-            throw new Error("Agent 1 (Retrieval) returned empty response");
-        }
-        rawExtraction = stripMarkdownFences(rawExtraction);
-        console.log("[extract] Agent 1 (Retrieval): Complete");
-
-        // === AGENT 2: Conversion ===
-        console.log("[extract] Agent 2 (Conversion): Starting plain language conversion");
-        let raw = await runConversionAgent(rawExtraction);
-
-        if (!raw) {
-            console.warn("[extract] Agent 2 (Conversion) returned empty, falling back to Agent 1 output");
-            raw = rawExtraction;
-        }
-        raw = stripMarkdownFences(raw);
-        console.log("[extract] Agent 2 (Conversion): Complete");
-
-        return NextResponse.json({ raw });
-
-    } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
-        console.error("[extract] Pipeline error:", msg);
-        auditLog({
-            request, action: 'SYSTEM_ERROR',
-            resource: { type: 'API', path: '/api/extract' },
-            status: { code: 500, result: 'FAILURE' },
-            details: { error: msg }
-        });
-        return NextResponse.json(
-            { error: "Extraction failed", details: msg },
-            { status: 500 }
-        );
+    if (!batchPrompts || typeof batchPrompts !== "object" || !vectorStoreId) {
+      return NextResponse.json(
+        { error: "Missing batchPrompts or vectorStoreId" },
+        { status: 400 },
+      );
     }
+
+    const keys = Object.keys(batchPrompts);
+    auditLog({
+      request,
+      action: "DATA_EXTRACT",
+      resource: { type: "API", path: "/api/extract" },
+      status: { code: 200, result: "SUCCESS" },
+      details: { keys, vectorStoreId },
+    });
+
+    // === AGENT 1: Retrieval ===
+    console.log("[extract] Agent 1 (Retrieval): Starting for keys:", keys);
+    let rawExtraction = await runRetrievalAgent(
+      keys,
+      batchPrompts,
+      vectorStoreId,
+      contextData ?? null,
+    );
+
+    if (!rawExtraction) {
+      throw new Error("Agent 1 (Retrieval) returned empty response");
+    }
+    rawExtraction = stripMarkdownFences(rawExtraction);
+    console.log("[extract] Agent 1 (Retrieval): Complete");
+
+    // === AGENT 2: Conversion ===
+    console.log(
+      "[extract] Agent 2 (Conversion): Starting plain language conversion",
+    );
+    let raw = await runConversionAgent(rawExtraction);
+
+    if (!raw) {
+      console.warn(
+        "[extract] Agent 2 (Conversion) returned empty, falling back to Agent 1 output",
+      );
+      raw = rawExtraction;
+    }
+    raw = stripMarkdownFences(raw);
+    console.log("[extract] Agent 2 (Conversion): Complete");
+
+    return NextResponse.json({ raw });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[extract] Pipeline error:", msg);
+    auditLog({
+      request,
+      action: "SYSTEM_ERROR",
+      resource: { type: "API", path: "/api/extract" },
+      status: { code: 500, result: "FAILURE" },
+      details: { error: msg },
+    });
+    return NextResponse.json({ error: "Extraction failed" }, { status: 500 });
+  }
 }

@@ -1,0 +1,4 @@
+## 2026-05-03 - Information Disclosure in API Responses
+**Vulnerability:** API routes (e.g., chat, extract, upload, generate) were returning internal stack traces or raw error messages to the client via Next.js `NextResponse.json` in 500 responses (`details: error instanceof Error ? error.message : String(error)`).
+**Learning:** Returning overly verbose internal errors exposes sensitive system information that could be leveraged by attackers to understand the backend architecture or exploit further vulnerabilities.
+**Prevention:** Always fail securely. Return a generic, safe error message to the client (e.g., `{ error: "Operation failed" }`) and log the detailed, verbose error message strictly server-side (e.g., via `auditLog` or `console.error`) to ensure debugging is preserved without information leakage.
