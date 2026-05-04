@@ -1,0 +1,3 @@
+## 2025-05-04 - Accessible Focus States for Framer Motion Icon Buttons
+**Learning:** Icon-only buttons implemented with `<motion.button>` (Framer Motion) lack visible focus states by default in this design system. Relying solely on `whileHover` and `whileTap` animations creates an accessibility gap for keyboard users, as the browser's default focus outline is often suppressed or insufficient.
+**Action:** When adding or auditing `<motion.button>` components, particularly icon-only variants, explicitly add standard Tailwind focus-visible utility classes (e.g., `outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2`) to ensure robust keyboard navigability while preserving Framer Motion's interactive animations.
