@@ -31,14 +31,37 @@ export interface AuditLogParams {
     action: AuditAction;
     resource: AuditResource;
     status: AuditStatus;
-    details?: any;
+    details?: unknown;
+}
+
+export function getSecureIp(request: NextRequest): string {
+    // 1. Check Azure-specific header (hardest to spoof if on Azure EasyAuth/App Service)
+    const azureIp = request.headers.get('x-azure-clientip');
+    if (azureIp) {
+        // Sanitize to prevent log injection
+        return azureIp.replace(/[\r\n]/g, '').trim();
+    }
+
+    // 2. Check X-Forwarded-For
+    const forwardedFor = request.headers.get('x-forwarded-for');
+    if (forwardedFor) {
+        // X-Forwarded-For can be a comma-separated list of IPs.
+        // The *last* IP is usually added by the most trusted proxy (e.g., Azure Front Door / Application Gateway).
+        // The first IP is easily spoofed by the client.
+        const ips = forwardedFor.split(',').map(ip => ip.replace(/[\r\n]/g, '').trim()).filter(Boolean);
+        if (ips.length > 0) {
+            return ips[ips.length - 1]; // Secure approach: Take the LAST entry
+        }
+    }
+
+    return 'unknown';
 }
 
 export function auditLog({ request, action, resource, status, details }: AuditLogParams) {
     const user = getUserIdentity(request);
     
     // Attempt standard UUID, fallback to basic pseudo-random if unavailable
-    let fallbackId = Math.random().toString(36).substring(2, 10);
+    const fallbackId = Math.random().toString(36).substring(2, 10);
     let uuid = fallbackId;
     try {
         if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -51,7 +74,7 @@ export function auditLog({ request, action, resource, status, details }: AuditLo
     // Extract headers
     const sessionId = request.headers.get('x-session-id') || `sess_${uuid.substring(0, 8)}`;
     const correlationId = request.headers.get('x-correlation-id') || `corr_${uuid.substring(0, 8)}`;
-    const publicIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const publicIp = getSecureIp(request);
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     let endpoint = 'unknown';
@@ -88,12 +111,12 @@ export function auditLog({ request, action, resource, status, details }: AuditLo
     }
 }
 
-export function timedAuditLog(request: NextRequest, category: string, eventName: string, initialDetails: any = {}) {
+export function timedAuditLog(request: NextRequest, category: string, eventName: string, initialDetails: unknown = {}) {
     const startTime = Date.now();
     return {
-        finish: (finalDetails: any) => {
+        finish: (finalDetails: Record<string, unknown> | null) => {
             const durationMs = Date.now() - startTime;
-            const statusCode = finalDetails?.status || 500;
+            const statusCode = (finalDetails?.status as number | undefined) || 500;
             const result = statusCode >= 400 ? 'FAILURE' : 'SUCCESS';
             
             let action: AuditAction = 'CLIENT_EVENT';
