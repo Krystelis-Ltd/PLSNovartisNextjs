@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOpenAIClient } from '@/lib/openai';
-import { AI_MODEL } from '@/lib/constants';
+import { AI_MODEL_MINI } from '@/lib/constants';
 import { getUserIdentity } from '@/lib/auth';
 import { auditLog } from '@/lib/audit-logger';
 import type { OpenAIResponsePayload, RefineRequest } from '@/types';
@@ -156,7 +156,7 @@ ${rawJson}`;
                 : [];
 
             const response = await (openai as unknown as { responses: { create: (opts: Record<string, unknown>) => Promise<OpenAIResponsePayload> } }).responses.create({
-                model: AI_MODEL,
+                model: AI_MODEL_MINI,
                 instructions: REFINEMENT_SYSTEM_PROMPT,
                 input: userPrompt,
                 text: { format: { type: "json_object" } },

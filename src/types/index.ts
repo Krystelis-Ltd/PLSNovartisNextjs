@@ -63,11 +63,29 @@ export interface UploadStats {
 
 // ─── Frontend State Types ───
 
-export interface SourceModalData {
-  quote: string;
-  file: string;
-  section: string;
+export interface SourceReference {
+  document: string;
   page: string;
+  section: string;
+  table: string | null;
+  location_details: string;
+  reason?: string;
+  confidence: string;
+}
+
+export interface SourceReasoningData {
+  primary_sources: SourceReference[];
+  extraction_method: string;
+  verification_notes: string;
+  ambiguities: string;
+}
+
+export interface SourceModalData {
+  quote?: string;
+  file?: string;
+  section?: string;
+  page?: string;
+  sourceReasoning?: SourceReasoningData;
 }
 
 export interface FileEntry {
@@ -90,6 +108,7 @@ export interface ExtractionFeedItem {
   sourceFile?: string;
   sourcePage?: string;
   sourceSection?: string;
+  sourceReasoning?: SourceReasoningData;
 }
 
 // ─── Treatment Data Shape ───

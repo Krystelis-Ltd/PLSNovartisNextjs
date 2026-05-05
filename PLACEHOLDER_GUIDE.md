@@ -1,6 +1,6 @@
 # Placeholder Replacement Guide
 
-## How Placeholders Work in Templates
+## How Placeholders Work in Templates in word docx
 
 ### Template Format (Word Documents)
 

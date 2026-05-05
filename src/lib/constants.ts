@@ -3,8 +3,11 @@
  * Eliminates magic numbers and duplicated arrays.
  */
 
-/** AI model used across all API routes */
+/** Primary AI model for extraction (high accuracy) */
 export const AI_MODEL = 'gpt-5.4';
+
+/** Lightweight AI model for refinement, validation, conversion (cost-saving) */
+export const AI_MODEL_MINI = 'gpt-5.4-mini';
 
 /** Metadata keys that are injected by the extraction agent and stripped before rendering */
 export const METADATA_KEYS = [
@@ -21,6 +24,7 @@ export const CITATION_KEYS_TO_REMOVE = [
   '_citations',
   'citations',
   'reasoning',
+  'source_reasoning',
   ...METADATA_KEYS,
 ] as const;
 

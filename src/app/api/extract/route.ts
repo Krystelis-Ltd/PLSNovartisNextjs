@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOpenAIClient } from '@/lib/openai';
 import { withRetry } from '@/lib/retry';
-import { AI_MODEL } from '@/lib/constants';
+import { AI_MODEL, AI_MODEL_MINI } from '@/lib/constants';
+import { SOURCE_REASONING_SUFFIX } from '@/lib/source-reasoning';
 import { getUserIdentity } from '@/lib/auth';
 import { auditLog } from '@/lib/audit-logger';
 import type { OpenAIResponsePayload, ExtractRequest } from '@/types';
@@ -12,13 +13,15 @@ export const maxDuration = 300;
  * Agentic Architecture: 2-Agent Pipeline
  *
  * Agent 1 (Retrieval Agent): Uses file_search to find and extract raw scientific
- *   data from documents. Focused on accuracy and completeness of retrieval.
+ *   data from documents. Uses gpt-5.4 for maximum accuracy.
+ *   Returns data + source_reasoning per key.
  *
  * Agent 2 (Conversion Agent): Takes raw scientific extractions and converts them
- *   into plain, accessible language. Lightweight reasoning for speed.
+ *   into plain, accessible language. Uses gpt-5.4-mini for cost efficiency.
+ *   Preserves source_reasoning metadata exactly.
  */
 
-// Agent 1: Retrieval - Extract raw scientific data from documents
+// Agent 1: Retrieval - Extract raw scientific data from documents (gpt-5.4)
 async function runRetrievalAgent(
     keys: string[],
     batchPrompts: Record<string, string>,
@@ -36,7 +39,7 @@ You must be precise, thorough, and faithful to the source material.
 1. Use your file_search tool to find and extract the requested information from the uploaded documents.
 2. Extract the data EXACTLY as it appears in the source — do NOT simplify, paraphrase, or translate terminology yet.
 3. Your ENTIRE response must be a single, valid, raw JSON object. NO Markdown fences. NO text before/after.
-4. For EVERY task key, wrap your extracted data in metadata: "data", "confidence_score" (0-100), "source_quote", "source_file", "source_page", "source_section".
+4. For EVERY task key, you MUST return a JSON object containing "data" and "source_reasoning".
 5. Use the <previous_extractions_context> to understand foundational study facts.
 </core_directives>
 
@@ -52,16 +55,9 @@ ${keys.map(k => `==============================
 TASK KEY: "${k}"
 EXTRACTION INSTRUCTIONS:
 ${batchPrompts[k]}
+`).join('\n\n')}
 
-Your output for "${k}" MUST match this schema:
-{
-  "data": { ...<extracted data matching the requested JSON structure>... },
-  "confidence_score": 95,
-  "source_quote": "Exact sentence(s) from the source document.",
-  "source_file": "document.pdf",
-  "source_page": "Page 5",
-  "source_section": "2.1 Background"
-}`).join('\n\n')}
+${SOURCE_REASONING_SUFFIX}
 `;
 
     return withRetry(async () => {
@@ -83,7 +79,7 @@ Your output for "${k}" MUST match this schema:
     }, { label: 'Retrieval Agent' });
 }
 
-// Agent 2: Conversion - Convert scientific language to plain language
+// Agent 2: Conversion - Convert scientific language to plain language (gpt-5.4-mini)
 async function runConversionAgent(rawExtraction: string): Promise<string> {
     const conversionSystemPrompt = `
 <system_role>
@@ -99,12 +95,13 @@ that a 6th-8th grade reader can understand, while preserving the exact JSON stru
 4. Keep sentences short and direct. Use active voice.
 5. Replace jargon: "adverse events" → "medical problems", "efficacy" → "effects", "subjects/patients" → "participants".
 6. Your ENTIRE response must be a single valid raw JSON object. NO markdown fences.
-7. PRESERVE confidence_score, source_quote, source_file, source_page, source_section metadata exactly.
+7. CRITICAL: You MUST preserve "source_reasoning" metadata blocks EXACTLY as received. Do NOT modify, simplify, or remove any source_reasoning data.
 </conversion_rules>
 `;
 
     const conversionPrompt = `Convert the following extracted scientific data into plain, accessible language.
 Keep the JSON structure identical. Only simplify the text content within string values.
+IMPORTANT: Preserve all "source_reasoning" blocks exactly as they are — do NOT modify them.
 
 RAW SCIENTIFIC DATA:
 ${rawExtraction}`;
@@ -112,7 +109,7 @@ ${rawExtraction}`;
     return withRetry(async () => {
         const openai = getOpenAIClient();
         const response = await (openai as unknown as { responses: { create: (opts: Record<string, unknown>) => Promise<OpenAIResponsePayload> } }).responses.create({
-            model: AI_MODEL,
+            model: AI_MODEL_MINI,
             instructions: conversionSystemPrompt,
             input: conversionPrompt,
             reasoning: { effort: "low" },
@@ -146,18 +143,18 @@ export async function POST(request: NextRequest) {
             details: { keys, vectorStoreId }
         });
 
-        // === AGENT 1: Retrieval ===
-        console.log("[extract] Agent 1 (Retrieval): Starting for keys:", keys);
+        // === AGENT 1: Retrieval (gpt-5.4) ===
+        console.log("[extract] Agent 1 (Retrieval/gpt-5.4): Starting for keys:", keys);
         let rawExtraction = await runRetrievalAgent(keys, batchPrompts, vectorStoreId, contextData ?? null);
 
         if (!rawExtraction) {
             throw new Error("Agent 1 (Retrieval) returned empty response");
         }
         rawExtraction = stripMarkdownFences(rawExtraction);
-        console.log("[extract] Agent 1 (Retrieval): Complete");
+        console.log("[extract] Agent 1 (Retrieval/gpt-5.4): Complete");
 
-        // === AGENT 2: Conversion ===
-        console.log("[extract] Agent 2 (Conversion): Starting plain language conversion");
+        // === AGENT 2: Conversion (gpt-5.4-mini) ===
+        console.log("[extract] Agent 2 (Conversion/gpt-5.4-mini): Starting plain language conversion");
         let raw = await runConversionAgent(rawExtraction);
 
         if (!raw) {
@@ -165,7 +162,7 @@ export async function POST(request: NextRequest) {
             raw = rawExtraction;
         }
         raw = stripMarkdownFences(raw);
-        console.log("[extract] Agent 2 (Conversion): Complete");
+        console.log("[extract] Agent 2 (Conversion/gpt-5.4-mini): Complete");
 
         return NextResponse.json({ raw });
 

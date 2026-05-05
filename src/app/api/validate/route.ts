@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOpenAIClient } from '@/lib/openai';
 import { withRetry } from '@/lib/retry';
-import { AI_MODEL } from '@/lib/constants';
+import { AI_MODEL_MINI } from '@/lib/constants';
 import { getUserIdentity } from '@/lib/auth';
 import { auditLog } from '@/lib/audit-logger';
 import type { OpenAIResponsePayload, ValidateRequest } from '@/types';
@@ -28,7 +28,6 @@ export async function POST(request: NextRequest) {
 
         const developerMessage = `
 <system_role>
-You are an expert Clinical Data Auditor (Red Team).
 Your job is to independently verify a complex data table extracted by an AI against its source text.
 </system_role>
 
@@ -55,7 +54,7 @@ ${JSON.stringify(extractedData)}
         const raw = await withRetry(async () => {
             const openai = getOpenAIClient();
             const response = await (openai as unknown as { responses: { create: (opts: Record<string, unknown>) => Promise<OpenAIResponsePayload> } }).responses.create({
-                model: AI_MODEL,
+                model: AI_MODEL_MINI,
                 instructions: developerMessage,
                 input: userPrompt,
                 reasoning: { effort: "low" }

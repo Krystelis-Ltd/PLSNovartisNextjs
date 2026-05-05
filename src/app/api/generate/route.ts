@@ -12,6 +12,30 @@ import type { GenerateRequest, TreatmentGroup, ChartEndpointItem, ChartDataset }
 
 export async function POST(request: NextRequest) {
     try {
+        const paragraphFromCellText = (text: string, bold = false) => {
+            const lines = String(text ?? '').split(/\r?\n/);
+            return new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: lines.map((line, idx) =>
+                    new TextRun({ text: line, bold, break: idx > 0 ? 1 : 0 })
+                )
+            });
+        };
+
+        const paragraphsFromPlainText = (text: string): Paragraph[] => {
+            const normalized = String(text ?? '').replace(/\r\n/g, '\n');
+            const blocks = normalized.split('\n');
+            return blocks.map((block) => new Paragraph({ children: [new TextRun(block)] }));
+        };
+
+        const paragraphsFromStringArray = (items: string[]): Paragraph[] => {
+            return items.map((item) => {
+                const cleaned = String(item ?? '').trim();
+                const normalized = cleaned.replace(/^[-*•]\s+/, '');
+                return new Paragraph({ children: [new TextRun(`• ${normalized}`)] });
+            });
+        };
+
         const userId = getUserIdentity(request);
         const body: GenerateRequest = await request.json();
         const { parsedData, mappingName } = body;
@@ -174,20 +198,14 @@ export async function POST(request: NextRequest) {
                             return new TableCell({
                                 shading: { fill: bgColor },
                                 verticalAlign: VerticalAlign.CENTER,
-                                children: [new Paragraph({
-                                    alignment: AlignmentType.CENTER,
-                                    children: [new TextRun({ text: String(h), bold: true, color: "FFFFFF" })]
-                                })],
+                                children: [paragraphFromCellText(String(h), true)],
                             });
                         }),
                     }),
                     ...rows.map((r: string[]) => new TableRow({
                         children: r.map((c: string) => new TableCell({
                             verticalAlign: VerticalAlign.CENTER,
-                            children: [new Paragraph({
-                                alignment: AlignmentType.CENTER,
-                                children: [new TextRun(String(c))]
-                            })],
+                            children: [paragraphFromCellText(String(c))],
                         })),
                     }))
                 ];
@@ -370,32 +388,31 @@ export async function POST(request: NextRequest) {
                         textPatches[key] = { type: PatchType.PARAGRAPH, children: [new TextRun(JSON.stringify(value))] };
                     }
                 } else if (Array.isArray(value)) {
-                    let runs: TextRun[] = [];
-                    for (let i = 0; i < value.length; i++) {
-                        const item = value[i];
-                        if (typeof item === 'string') {
-                            runs.push(new TextRun({ text: `• ${item}`, break: i > 0 ? 1 : 0 }));
-                        } else if (typeof item === 'object' && item !== null) {
-                            if (item.question && item.answer) {
-                                runs.push(new TextRun({ text: String(item.question), bold: true, break: runs.length > 0 ? 2 : 0 }));
-                                runs.push(new TextRun({ text: String(item.answer), break: 1 }));
-                            } else if (item.question && item.primary_endpoint_results_conclusion) {
-                                runs.push(new TextRun({ text: String(item.question), bold: true, break: runs.length > 0 ? 2 : 0 }));
-                                runs.push(new TextRun({ text: String(item.primary_endpoint_results_conclusion), break: 1 }));
-                            }
-                        }
-                    }
-                    if (runs.length > 0) {
+                    const stringItems = value.filter((item): item is string => typeof item === 'string');
+                    if (stringItems.length === value.length) {
                         textPatches[key] = {
-                            type: PatchType.PARAGRAPH,
-                            children: runs
+                            type: PatchType.DOCUMENT,
+                            children: paragraphsFromStringArray(stringItems)
                         };
                     } else {
-                        // Fallback
-                        textPatches[key] = {
-                            type: PatchType.PARAGRAPH,
-                            children: [new TextRun(JSON.stringify(value))]
-                        };
+                        const blocks: Paragraph[] = [];
+                        for (const item of value) {
+                            if (typeof item === 'object' && item !== null) {
+                                if ('question' in item && 'answer' in item) {
+                                    blocks.push(new Paragraph({ children: [new TextRun({ text: String(item.question), bold: true })] }));
+                                    blocks.push(...paragraphsFromPlainText(String(item.answer)));
+                                    blocks.push(new Paragraph({ children: [] }));
+                                } else if ('question' in item && 'primary_endpoint_results_conclusion' in item) {
+                                    blocks.push(new Paragraph({ children: [new TextRun({ text: String(item.question), bold: true })] }));
+                                    blocks.push(...paragraphsFromPlainText(String(item.primary_endpoint_results_conclusion)));
+                                    blocks.push(new Paragraph({ children: [] }));
+                                }
+                            }
+                        }
+
+                        textPatches[key] = blocks.length > 0
+                            ? { type: PatchType.DOCUMENT, children: blocks }
+                            : { type: PatchType.PARAGRAPH, children: [new TextRun(JSON.stringify(value))] };
                     }
                 } else if (typeof value === 'object') {
                     // Fallback for an object
@@ -404,11 +421,19 @@ export async function POST(request: NextRequest) {
                         children: [new TextRun(JSON.stringify(value, null, 2))]
                     };
                 } else {
-                    // Fallback to text patch for standard strings/numbers.
-                    textPatches[key] = {
-                        type: PatchType.PARAGRAPH,
-                        children: [new TextRun(String(value))]
-                    };
+                    // Keep paragraph structure for multi-line output from model responses.
+                    const normalized = String(value);
+                    if (normalized.includes('\n')) {
+                        textPatches[key] = {
+                            type: PatchType.DOCUMENT,
+                            children: paragraphsFromPlainText(normalized)
+                        };
+                    } else {
+                        textPatches[key] = {
+                            type: PatchType.PARAGRAPH,
+                            children: [new TextRun(normalized)]
+                        };
+                    }
                 }
             }
         }

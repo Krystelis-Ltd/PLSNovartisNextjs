@@ -17,7 +17,7 @@ export function getOpenAIClient(): OpenAI {
         'Please add it to your .env.local file. See .env.example for reference.'
       );
     }
-    _client = new OpenAI({ apiKey });
+    _client = new OpenAI({ apiKey, timeout: 120_000, maxRetries: 2 });
   }
   return _client;
 }
