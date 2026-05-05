@@ -1,0 +1,3 @@
+## 2025-05-05 - Framer Motion Icon-Only Buttons Keyboard Accessibility
+**Learning:** Icon-only buttons wrapped in `framer-motion`'s `<motion.button>` (e.g., in `src/components/Chatbot.tsx`) require standard Tailwind `focus-visible` classes (like `focus-visible:ring-2`) directly applied to their `className` to ensure keyboard accessibility. Also `aria-label` is needed for screen readers and `aria-hidden="true"` should be placed on the inner `span` containing the icon ligature.
+**Action:** When creating or modifying `<motion.button>` icon-only components in this repository, always append `focus-visible:outline-none focus-visible:ring-2` to their classes and ensure proper `aria-label`s exist with `aria-hidden="true"` on the icon spans.
