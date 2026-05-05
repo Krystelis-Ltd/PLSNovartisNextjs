@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import crypto from 'node:crypto';
 import { getUserIdentity } from '@/lib/auth';
 
 export type AuditAction = 
@@ -37,21 +38,31 @@ export interface AuditLogParams {
 export function auditLog({ request, action, resource, status, details }: AuditLogParams) {
     const user = getUserIdentity(request);
     
-    // Attempt standard UUID, fallback to basic pseudo-random if unavailable
-    let fallbackId = Math.random().toString(36).substring(2, 10);
-    let uuid = fallbackId;
+    // Use standard UUID, fallback to secure random bytes if unavailable
+    let uuid;
     try {
-        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-            uuid = crypto.randomUUID();
-        }
+        uuid = crypto.randomUUID();
     } catch {
-        // ignore
+        uuid = crypto.randomBytes(16).toString('hex');
     }
     
     // Extract headers
     const sessionId = request.headers.get('x-session-id') || `sess_${uuid.substring(0, 8)}`;
     const correlationId = request.headers.get('x-correlation-id') || `corr_${uuid.substring(0, 8)}`;
-    const publicIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+
+    // Extract client IP securely
+    let publicIp = 'unknown';
+    const azureIp = request.headers.get('x-azure-clientip');
+    if (azureIp) {
+        publicIp = azureIp;
+    } else {
+        const forwardedFor = request.headers.get('x-forwarded-for');
+        if (forwardedFor) {
+            const ips = forwardedFor.split(',').map(ip => ip.trim());
+            publicIp = ips[ips.length - 1] || 'unknown';
+        }
+    }
+
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     let endpoint = 'unknown';
