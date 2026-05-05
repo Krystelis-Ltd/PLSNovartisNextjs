@@ -1,0 +1,3 @@
+## 2024-05-18 - Strict Memoization to Prevent UI Blockage
+**Learning:** The Dashboard component uses a 100ms timer (`extractionTimeMs`) during extraction tasks to update the UI. Derived states like prompt parsing and feed filtering that lack strict memoization cause severe UI blockages due to rapid re-renders on every tick of the timer. React's default behavior is to re-execute all logic inside the component body during a render, which amplifies performance issues when frequent timers are involved.
+**Action:** Always maintain strict memoization (`useMemo`, `useCallback`) for derived states and functions in components with frequent, rapid state updates (like timers or progress bars) to prevent regressions in UI responsiveness.
