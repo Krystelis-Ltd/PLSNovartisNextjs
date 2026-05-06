@@ -1,0 +1,3 @@
+## 2023-10-27 - Icon-only buttons lacking accessible names and focus rings
+**Learning:** Icon-only buttons (like those using `material-symbols-outlined` ligatures) in Framer Motion `<motion.button>` and standard `<button>` components were lacking `aria-label`, visible keyboard focus (`focus-visible`), and properly hid the icon ligatures from screen readers (`aria-hidden`).
+**Action:** Always add `aria-label` to icon-only buttons, set `aria-hidden="true"` on the ligature span, and use `focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]` with `focus-visible:outline-none` to enable proper keyboard accessibility.
