@@ -1,0 +1,3 @@
+## 2026-05-08 - Memoization for High-Frequency Re-renders
+**Learning:** The Dashboard component (`src/app/page.tsx`) updates frequently (every 100ms) during extraction tasks due to progress state changes. Un-memoized derivations (like `extractPrompts` and `pipeline.extractionFeed.filter(...).reduce(...)`) execute on every tick, causing UI blockage and unresponsiveness.
+**Action:** When a component is subject to high-frequency state updates (like timers or progress bars), strictly enforce memoization (`useMemo`, `useCallback`) for any complex derived state (JSON parsing, array mapping/reducing) or callback functions passed to children to maintain 60FPS UI performance.
