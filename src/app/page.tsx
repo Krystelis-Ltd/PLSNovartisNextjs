@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { extractPrompts } from '@/utils/promptLoader'
 import { Chatbot } from '@/components/Chatbot'
@@ -80,7 +80,8 @@ export default function Dashboard() {
   }, []);
 
   // Dynamic prompts derived from selection
-  const promptData = extractPrompts(readabilityLevel, mappingName)
+  // ⚡ Bolt: Memoize prompt extraction to avoid re-parsing on every render.
+  const promptData = useMemo(() => extractPrompts(readabilityLevel, mappingName), [readabilityLevel, mappingName])
   const keys = promptData.keys;
   const texts = promptData.texts;
   const mapping = promptData.mapping;
@@ -163,22 +164,27 @@ export default function Dashboard() {
     }
   }
 
-  const currentFetchedAnswers = pipeline.extractionFeed
-    .filter(f => f.status === 'COMPLETED' && f.parsedObj)
-    .reduce((acc, feed) => {
-      const keyIndex = keys.indexOf(feed.title);
-      let finalKey = feed.title;
-      if (keyIndex !== -1) {
-        const m = mapping[String(keyIndex + 1) as keyof typeof mapping] as any;
-        if (m) {
-          if (m.placeholder) finalKey = m.placeholder;
-          else if (m.table_placeholder) finalKey = m.table_placeholder.replace(/^{{/, '').replace(/}}$/, '');
+  // ⚡ Bolt: Memoize fetched answers and optimize reduce from O(n²) to O(n) by mutating accumulator.
+  const currentFetchedAnswers = useMemo(() => {
+    return pipeline.extractionFeed
+      .filter(f => f.status === 'COMPLETED' && f.parsedObj)
+      .reduce((acc: Record<string, any>, feed) => {
+        const keyIndex = keys.indexOf(feed.title);
+        let finalKey = feed.title;
+        if (keyIndex !== -1) {
+          const m = mapping[String(keyIndex + 1) as keyof typeof mapping] as any;
+          if (m) {
+            if (m.placeholder) finalKey = m.placeholder;
+            else if (m.table_placeholder) finalKey = m.table_placeholder.replace(/^{{/, '').replace(/}}$/, '');
+          }
         }
-      }
-      return { ...acc, [finalKey]: feed.parsedObj };
-    }, {});
+        acc[finalKey] = feed.parsedObj;
+        return acc;
+      }, {});
+  }, [pipeline.extractionFeed, keys, mapping]);
 
-  const handleChatbotUpdate = (keyToUpdate: string, newValue: any) => {
+  // ⚡ Bolt: Stabilize chatbot update callback to prevent unnecessary child component re-renders.
+  const handleChatbotUpdate = useCallback((keyToUpdate: string, newValue: any) => {
     pipeline.setExtractionFeed(prev => prev.map(feed => {
       const keyIndex = keys.indexOf(feed.title);
       let finalKey = feed.title;
@@ -199,7 +205,7 @@ export default function Dashboard() {
       }
       return feed;
     }));
-  };
+  }, [pipeline.setExtractionFeed, keys, mapping]);
 
   return (
     <div className="flex flex-col h-full w-full relative gradient-mesh">
