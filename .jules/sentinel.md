@@ -1,0 +1,4 @@
+## 2024-05-16 - Math.random() usage for security identifiers
+**Vulnerability:** The application used `Math.random()` as a fallback to generate session and correlation IDs for audit logs.
+**Learning:** `Math.random()` is not a cryptographically secure random number generator (CSPRNG). While `crypto.randomUUID()` was attempted first, the fallback for environments lacking it generated highly predictable identifiers. Do not replace `Math.random()` with `crypto` alternatives in non-security contexts (e.g., UI Toast IDs in `src/components/Toast.tsx` or network retry jitter). Doing so is considered 'security theater' and may introduce runtime crashes. Only replace it for actual security-sensitive identifiers (e.g., `audit-logger.ts`).
+**Prevention:** Always use CSPRNGs like `node:crypto`'s `randomUUID()` or `randomBytes(16).toString('hex')` for security-sensitive identifiers (e.g., sessions, correlation IDs, tokens).
