@@ -108,9 +108,10 @@ function ToastItem({ toast, onDismiss }: { toast: ToastData; onDismiss: (id: str
       <p className={`text-sm font-medium flex-1 ${config.text}`}>{toast.message}</p>
       <button
         onClick={() => onDismiss(toast.id)}
-        className={`shrink-0 p-0.5 rounded-md hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${config.text}`}
+        aria-label="Close notification"
+        className={`shrink-0 p-0.5 rounded-md hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current ${config.text}`}
       >
-        <span className="material-symbols-outlined text-[16px]">close</span>
+        <span className="material-symbols-outlined text-[16px]" aria-hidden="true">close</span>
       </button>
     </motion.div>
   )
