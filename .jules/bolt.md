@@ -1,0 +1,3 @@
+## 2026-05-09 - Avoid O(n²) array reduction with object spreading in React components
+**Learning:** Using the object spread operator (`{...acc, [key]: val}`) inside an array `.reduce()` creates a new object on every iteration, leading to $O(n^2)$ time complexity and unnecessary garbage collection overhead. This is especially detrimental when the reduction occurs on every render in a React component, causing UI stuttering during rapid state updates (e.g., 100ms timers).
+**Action:** Always prefer direct accumulator mutation (`acc[key] = val`) within `.reduce()` when building objects from arrays, combined with `useMemo` to cache the derived state entirely between renders.
