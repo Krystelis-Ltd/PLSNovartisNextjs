@@ -1,3 +1,4 @@
+import { randomUUID, randomBytes } from 'node:crypto';
 import { NextRequest } from 'next/server';
 import { getUserIdentity } from '@/lib/auth';
 
@@ -38,15 +39,12 @@ export interface AuditLogParams {
 export function auditLog({ request, action, resource, status, details }: AuditLogParams) {
     const user = getUserIdentity(request);
 
-    // Attempt standard UUID, fallback to basic pseudo-random if unavailable
-    let fallbackId = Math.random().toString(36).substring(2, 10);
-    let uuid = fallbackId;
+    // Attempt standard UUID, fallback to randomBytes if unavailable
+    let uuid: string;
     try {
-        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-            uuid = crypto.randomUUID();
-        }
+        uuid = randomUUID();
     } catch {
-        // ignore
+        uuid = randomBytes(16).toString('hex');
     }
 
     // Extract headers
