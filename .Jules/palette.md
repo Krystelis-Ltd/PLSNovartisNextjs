@@ -1,0 +1,3 @@
+## 2025-03-01 - Icon Accessibility Pattern
+**Learning:** Found an app-wide accessibility issue where icon-only buttons using Material Symbols (`<span className="material-symbols-outlined">icon_name</span>`) are missing `aria-label` attributes on the parent buttons and `aria-hidden="true"` on the icons themselves. This causes screen readers to either read the ligature text (e.g. "close", "chat") without context, or not announce the button function properly.
+**Action:** When adding or updating icon-only buttons, always apply `aria-label` describing the action to the `<button>` and `aria-hidden="true"` to the inner `<span className="material-symbols-outlined">`. Update existing components like Chatbot, JsonEditor, and SourceProofModal.
