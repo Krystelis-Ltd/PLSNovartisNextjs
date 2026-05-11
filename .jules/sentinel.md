@@ -1,0 +1,5 @@
+
+## 2024-05-11 - IP Spoofing & Insecure Randomness in Audit Logger
+**Vulnerability:** The application was vulnerable to IP spoofing by prioritizing the first entry of `X-Forwarded-For` and `X-Real-IP`, which can be easily manipulated by attackers. It also used `Math.random()` to generate fallback IDs in security contexts, leading to predictable session/correlation IDs.
+**Learning:** In Azure App Service environments, securely extracting the client IP requires prioritizing the `X-Azure-ClientIP` header. If absent, the **last** entry of the comma-separated `X-Forwarded-For` list should be used, as it is appended by the proxy, making it harder to spoof than the first entry. Furthermore, `Math.random()` must never be used for security purposes like session ID generation.
+**Prevention:** Always use the global Web Crypto API (`crypto.randomUUID()` or `crypto.getRandomValues()`) for generating secure IDs. When extracting client IPs behind a proxy, rely on reliable headers provided by the hosting environment or extract the last entry of the proxy chain.
