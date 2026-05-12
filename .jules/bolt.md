@@ -1,0 +1,3 @@
+## $(date +%Y-%m-%d) - Optimize Dashboard Render Performance (O(n²) -> O(n) array reduce)
+**Learning:** React component derived state often uses `.reduce` to build objects from arrays. When doing this, using the object spread operator (`{ ...acc, [key]: value }`) inside the `.reduce` callback causes O(n²) time complexity and creates significant memory churn, as a new object is allocated and all previous keys are copied on every iteration.
+**Action:** Instead of object spread, mutate the accumulator directly (`acc[key] = value`) inside the `.reduce` callback, returning the mutated accumulator. Always combine this with `useMemo` so this calculation doesn't run unnecessarily on every render, especially in top-level dashboard components.
