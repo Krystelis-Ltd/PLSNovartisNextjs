@@ -1,0 +1,3 @@
+## 2025-02-12 - Prevent Whole-File Prettier Diffs from Obscuring Small Fixes
+**Learning:** Running `npx prettier --write <file>` on an entire file that previously diverged from current Prettier rules can generate a massive, whole-file diff. This obscures the actual optimization logic and violates "< 50 line" constraints, leading to PR review rejections.
+**Action:** Do not run whole-file formatters on unformatted codebases for surgical optimizations. Only format the specific block or lines modified to keep the PR focused. Also, always remove temporary scripts from the working tree before requesting code review.
