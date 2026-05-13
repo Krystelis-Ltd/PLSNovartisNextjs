@@ -1,0 +1,3 @@
+## 2025-05-18 - Accessibility for icon-only buttons with material-symbols
+**Learning:** Found a recurring pattern in the app's components (like Chatbot) where icon-only buttons using `<span className="material-symbols-outlined">...</span>` lacked `aria-label`s, the spans were read by screen readers (missing `aria-hidden="true"`), and focus states were non-existent for keyboard navigation.
+**Action:** Always add `aria-label` to the button element, `aria-hidden="true"` to the inner icon span to prevent ligature text from being announced, and apply `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color]` utility classes to provide clear keyboard focus indicators without relying on custom CSS.
