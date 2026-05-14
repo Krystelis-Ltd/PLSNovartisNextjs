@@ -52,7 +52,21 @@ export function auditLog({ request, action, resource, status, details }: AuditLo
     // Extract headers
     const sessionId = request.headers.get('x-session-id') || `sess_${uuid.substring(0, 8)}`;
     const correlationId = request.headers.get('x-correlation-id') || `corr_${uuid.substring(0, 8)}`;
-    const publicIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+
+    let publicIp = 'unknown';
+    const azureIp = request.headers.get('x-azure-clientip');
+    if (azureIp) {
+        publicIp = azureIp;
+    } else {
+        const xForwardedFor = request.headers.get('x-forwarded-for');
+        if (xForwardedFor) {
+            const ips = xForwardedFor.split(',').map(ip => ip.trim());
+            publicIp = ips[ips.length - 1];
+        } else {
+            publicIp = request.headers.get('x-real-ip') || 'unknown';
+        }
+    }
+
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     let endpoint = 'unknown';
