@@ -1,0 +1,3 @@
+## 2024-05-14 - Optimize array reduction in React render loops
+**Learning:** Found a specific performance anti-pattern where an array `reduce` using object spread operator (`{ ...acc, [key]: value }`) inside a React component runs on every render, resulting in $O(N^2)$ time complexity which can cause measurable lag during frequent state updates like progress bars.
+**Action:** Replaced object spread with direct accumulator mutation (`acc[key] = value`) for $O(N)$ complexity and wrapped the calculation in a `useMemo` hook to ensure it only recalculates when actual dependencies change, preventing unnecessary work during re-renders.
