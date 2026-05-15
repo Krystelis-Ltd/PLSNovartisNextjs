@@ -1,0 +1,3 @@
+## 2026-05-15 - Adding ARIA labels to icon-only buttons
+**Learning:** Icon-only buttons using ligature-based icon fonts (like Material Symbols) need both an `aria-label` on the button itself and `aria-hidden="true"` on the inner icon span to be fully accessible. Otherwise, screen readers will read out the text string (e.g. "chat") instead of understanding it's an actionable element.
+**Action:** Always verify icon-only buttons have an `aria-label` and ensure the icon span itself is hidden from screen readers. Additionally, ensure keyboard-focused states are styled properly using `focus-visible` utility classes.
