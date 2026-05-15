@@ -50,9 +50,11 @@ export function auditLog({ request, action, resource, status, details }: AuditLo
     }
 
     // Extract headers
-    const sessionId = request.headers.get('x-session-id') || `sess_${uuid.substring(0, 8)}`;
-    const correlationId = request.headers.get('x-correlation-id') || `corr_${uuid.substring(0, 8)}`;
-    const publicIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const sessionId = request.headers.get('x-session-id') || `sess_${uuid}`;
+    const correlationId = request.headers.get('x-correlation-id') || `corr_${uuid}`;
+    const xForwardedFor = request.headers.get('x-forwarded-for');
+    const lastXForwardedFor = xForwardedFor ? xForwardedFor.split(',').pop()?.trim() : undefined;
+    const publicIp = request.headers.get('x-azure-clientip') || lastXForwardedFor || request.headers.get('x-real-ip') || 'unknown';
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     let endpoint = 'unknown';
