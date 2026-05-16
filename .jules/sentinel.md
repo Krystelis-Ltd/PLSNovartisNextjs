@@ -1,0 +1,4 @@
+## 2024-05-16 - Prevent IP spoofing in audit logger
+**Vulnerability:** The audit logger extracts `publicIp` from `x-forwarded-for` and `x-real-ip` directly. For Azure App Service environments, prioritizing `X-Azure-ClientIP` or the last entry of `x-forwarded-for` is necessary to prevent IP spoofing, as the first entry or `x-real-ip` can be spoofed by clients.
+**Learning:** In Azure App Service environments, securely extract client IPs by prioritizing the `X-Azure-ClientIP` header (verified) or the **last** entry of the comma-separated `X-Forwarded-For` list (appended by the proxy); taking the first entry or relying on `X-Real-IP` is insecure and prone to spoofing.
+**Prevention:** Use a secure IP extraction utility that correctly handles the `x-forwarded-for` format and prioritizes trustworthy proxy headers.
