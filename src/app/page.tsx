@@ -163,20 +163,25 @@ export default function Dashboard() {
     }
   }
 
-  const currentFetchedAnswers = pipeline.extractionFeed
-    .filter(f => f.status === 'COMPLETED' && f.parsedObj)
-    .reduce((acc, feed) => {
-      const keyIndex = keys.indexOf(feed.title);
-      let finalKey = feed.title;
-      if (keyIndex !== -1) {
-        const m = mapping[String(keyIndex + 1) as keyof typeof mapping] as any;
-        if (m) {
-          if (m.placeholder) finalKey = m.placeholder;
-          else if (m.table_placeholder) finalKey = m.table_placeholder.replace(/^{{/, '').replace(/}}$/, '');
+  // ⚡ Bolt: Memoize derived state and mutate accumulator directly to prevent O(n^2) performance bottleneck
+  // and preserve prop reference stability for child components.
+  const currentFetchedAnswers = React.useMemo(() => {
+    return pipeline.extractionFeed
+      .filter(f => f.status === 'COMPLETED' && f.parsedObj)
+      .reduce((acc: Record<string, any>, feed) => {
+        const keyIndex = keys.indexOf(feed.title);
+        let finalKey = feed.title;
+        if (keyIndex !== -1) {
+          const m = mapping[String(keyIndex + 1) as keyof typeof mapping] as any;
+          if (m) {
+            if (m.placeholder) finalKey = m.placeholder;
+            else if (m.table_placeholder) finalKey = m.table_placeholder.replace(/^{{/, '').replace(/}}$/, '');
+          }
         }
-      }
-      return { ...acc, [finalKey]: feed.parsedObj };
-    }, {});
+        acc[finalKey] = feed.parsedObj;
+        return acc;
+      }, {});
+  }, [pipeline.extractionFeed, keys, mapping]);
 
   const handleChatbotUpdate = (keyToUpdate: string, newValue: any) => {
     pipeline.setExtractionFeed(prev => prev.map(feed => {
