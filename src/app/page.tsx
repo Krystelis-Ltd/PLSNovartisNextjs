@@ -175,7 +175,11 @@ export default function Dashboard() {
           else if (m.table_placeholder) finalKey = m.table_placeholder.replace(/^{{/, '').replace(/}}$/, '');
         }
       }
-      return { ...acc, [finalKey]: feed.parsedObj };
+      // Bolt Performance Optimization: Mutating the accumulator object instead of
+      // using the object spread operator ({ ...acc }) prevents O(n^2) performance
+      // bottlenecks in array .reduce() operations during React re-renders.
+      (acc as any)[finalKey] = feed.parsedObj;
+      return acc;
     }, {});
 
   const handleChatbotUpdate = (keyToUpdate: string, newValue: any) => {
