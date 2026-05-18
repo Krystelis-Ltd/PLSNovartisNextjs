@@ -50,9 +50,24 @@ export function auditLog({ request, action, resource, status, details }: AuditLo
     }
 
     // Extract headers
-    const sessionId = request.headers.get('x-session-id') || `sess_${uuid.substring(0, 8)}`;
-    const correlationId = request.headers.get('x-correlation-id') || `corr_${uuid.substring(0, 8)}`;
-    const publicIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    // Do not truncate the UUID as it creates ID collision vulnerabilities
+    const sessionId = request.headers.get('x-session-id') || `sess_${uuid}`;
+    const correlationId = request.headers.get('x-correlation-id') || `corr_${uuid}`;
+
+    // Secure IP extraction
+    const azureIp = request.headers.get('x-azure-clientip');
+    const forwardedFor = request.headers.get('x-forwarded-for');
+
+    let publicIp = 'unknown';
+    if (azureIp) {
+        publicIp = azureIp;
+    } else if (forwardedFor) {
+        const ips = forwardedFor.split(',').map(ip => ip.trim());
+        publicIp = ips[ips.length - 1] || 'unknown';
+    } else {
+        publicIp = request.headers.get('x-real-ip') || 'unknown';
+    }
+
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     let endpoint = 'unknown';
