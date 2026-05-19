@@ -35,11 +35,11 @@ export function SourceProofModal({ sourceModal, onClose }: SourceProofModalProps
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200/60 dark:border-slate-700/60 bg-gradient-to-r from-[var(--color-primary)]/5 to-transparent shrink-0">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[var(--color-primary)] text-[20px]">format_quote</span>
+                  <span className="material-symbols-outlined text-[var(--color-primary)] text-[20px]" aria-hidden="true">format_quote</span>
                   <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 tracking-wide">Source Reasoning & Proof</h3>
                 </div>
-                <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors">
-                  <span className="material-symbols-outlined text-slate-500 text-[20px]">close</span>
+                <button aria-label="Close modal" onClick={onClose} className="p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]">
+                  <span className="material-symbols-outlined text-slate-500 text-[20px]" aria-hidden="true">close</span>
                 </button>
               </div>
 

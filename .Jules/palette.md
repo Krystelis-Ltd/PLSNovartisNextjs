@@ -1,0 +1,3 @@
+## 2025-02-20 - Missing ARIA Labels on Material Symbols Buttons
+**Learning:** In this application, interactive icon-only buttons using `<span className="material-symbols-outlined">` frequently lack both `aria-label`s on the button element and `aria-hidden="true"` on the icon itself. This makes them inaccessible to screen readers, which may either skip them or attempt to read the ligature text.
+**Action:** When working on UX/accessibility, actively search for interactive elements with material icons and ensure they have an `aria-label` describing their action, along with `aria-hidden="true"` on the icon span to prevent redundant or confusing screen reader output. Also remember to check keyboard focus styles.
