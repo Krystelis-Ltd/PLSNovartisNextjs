@@ -1,0 +1,3 @@
+## 2024-03-24 - O(n^2) reduce bottlenecks in React re-renders
+**Learning:** The array `.reduce()` method with the object spread operator (`{ ...acc }`) inside a React component without memoization creates an O(n^2) bottleneck. Every iteration creates a new object and copies all previous properties, and since it runs on every render, it can significantly degrade UI performance.
+**Action:** Always wrap expensive derived state computations in `useMemo` and, when reducing to an object, mutate the accumulator directly (`acc[key] = value`) starting from an empty object instead of using the spread operator to achieve O(n) performance.
